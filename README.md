@@ -32,6 +32,8 @@ A backup script I wrote to replace deja-dup & co after it mangled a backup and m
 - `backup restore` and `backup remote restore` will restore the files to their origin (needs fixing);
 - appending `backup remote` with `suspend` will suspend the destination server after the backup is finished (requires that systemctl suspend is allowed on sudoers on the server)
 
+There is an internal setup script to generate the configuration file on the first run.
+
 **Known bugs:**
 - restore functions have been broken since the current backup was reduced to a file pointing to what needs to be kept from the incremental backup
 
@@ -114,7 +116,7 @@ Generate palettes algorithmically. Inspired by a concept by viznut/pwp. Try `pal
 
 ### passave
 
-Secure (more-or-less) password manager. As a bonus, it saves your encrypted passwords as a cool-looking PNG image. Try `passave --help` for usage info or `passave -b` for a interactive mode. Requires imagemagick, aspell, aspell-en, zsh, and awk/gawk.
+Secure (more-or-less) password manager. As a bonus, it saves your encrypted passwords as a cool-looking PNG image. Try `passave --help` for usage info or `passave -b` for an interactive mode. Requires imagemagick, aspell, aspell-en, zsh, and awk/gawk.
 
 
 ### permutate
@@ -124,7 +126,7 @@ Prints all possible permutations for the characters on a word. Usage is `permuta
 
 ### scan
 
-Wrapper for scanimage. Use `scan -?` for usage info. Please notice you might need to change the variables in the file 
+Wrapper for scanimage. Use `scan -?` for usage info. Please notice you might need to change the variables in the file for it to work correctly with your particular scanner model.
 
 
 ### sd_sleep
@@ -150,6 +152,7 @@ if [[ "$TERM" = "linux" ]] && [[ "$fbterm_pls" = "1" ]]; then
     tmux
     exit 0
   fi
+fi
 ```
 
 
