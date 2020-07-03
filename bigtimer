@@ -1,0 +1,90 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze 2018
+# Usage:        timer 1h 23m 45s -or- timer 3600
+
+
+STRW=`expr 7 \* 3 + 5` # String length "00:00:00" in character blocks produced by toilet font
+STRH=3                  # String height "00:00:00" in character blocks produced by toilet font
+SPACEW=3                # "Space" length in character block produced by toilet font
+
+cleanup() {
+  #return to the beginning of the line and unhide the cursor
+	printf "\r\e[?25h"
+	tput rmcup
+	exit 0
+}
+
+converts() {
+    local t=$1
+
+    typeset -Z2 d
+    typeset -Z2 h
+    typeset -Z2 m
+    typeset -Z2 s
+    local d=$((t/60/60/24))
+    local h=$((t/60/60%24))
+    local m=$((t/60%60))
+    local s=$((t%60))
+
+    printf "$B2$d:$h:$m:$s"
+}
+
+center() {
+    TW=`tput -S <<< cols`
+    TH=`tput -S <<< lines`
+
+    A1=`expr $TH - $STRH`
+    A1=`expr $A1 / 2`
+    A2=`expr $TW - $STRW`
+    A2=`expr $A2 / 2`
+    A2=`expr $A2 / $SPACEW`
+}
+
+until [[ -z $1 ]] ; do
+ temp=$(echo "$1" | tr -cd '[:digit:]')
+ case "$1" in
+   *[0-9]*s) ((t=temp+t)) ;;
+   *[0-9]*m) ((t=(60*temp)+t)) ;;
+   *[0-9]*h) ((t=(60*60*temp)+t)) ;;
+   *[0-9]*d) ((t=(24*60*60*temp)+t)) ;;
+   *[0-9])   ((t=temp+t)) ;;
+ esac
+ shift
+done
+temp=
+
+#change terminal buffers
+tput smcup
+
+#set background colours
+#printf "\e[48;5;232m \e[36m"
+#hide the cursor
+printf "\e[?25l"
+
+clear
+center
+
+#i=$(( t - SECONDS ))
+#converts $i | toilet -f future -t
+#printf " - Press q to quit\r"
+
+until (( SECONDS == t )) ; do
+  ((i = t - SECONDS ))
+  printf "\033[;H"
+  B2=""
+  for tmp in `seq 1 $A1`; do echo ""; done
+  for tmp in `seq 1 $A2`; do B2="$B2 "; done
+  converts $i | toilet -f future -t
+  read -t 1 -sk1 "var?"
+  [[ "$var" == "q" ]] && cleanup
+done
+
+while : ; do
+  beep -f 4000 -l 100 -D 75 -r 4
+  if read -t 0.350 -sk1 ; then
+    break
+  fi
+done
+
+cleanup

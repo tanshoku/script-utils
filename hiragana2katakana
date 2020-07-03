@@ -1,0 +1,55 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze         2019
+# Description:  hiragana to katakana translator
+# Requires:     zsh
+
+char_ぁ="ァ"; char_あ="ア"; char_ぃ="ィ"; char_い="イ"; 
+char_ぅ="ゥ"; char_う="ウ"; char_ぇ="ェ"; char_え="エ"; 
+char_ぉ="ォ"; char_お="オ"; char_か="カ"; char_が="ガ"; 
+char_き="キ"; char_ぎ="ギ"; char_く="ク"; char_ぐ="グ"; 
+char_け="ケ"; char_げ="ゲ"; char_こ="コ"; char_ご="ゴ"; 
+char_さ="サ"; char_ざ="ザ"; char_し="シ"; char_じ="ジ"; 
+char_す="ス"; char_ず="ズ"; char_せ="セ"; char_ぜ="ゼ"; 
+char_そ="ソ"; char_ぞ="ゾ"; char_た="タ"; char_だ="ダ"; 
+char_ち="チ"; char_ぢ="ヂ"; char_っ="ッ"; char_つ="ツ"; 
+char_づ="ヅ"; char_て="テ"; char_で="デ"; char_と="ト"; 
+char_ど="ド"; char_な="ナ"; char_に="ニ"; char_ぬ="ヌ"; 
+char_ね="ネ"; char_の="ノ"; char_は="ハ"; char_ば="バ"; 
+char_ぱ="パ"; char_ひ="ヒ"; char_び="ビ"; char_ぴ="ピ"; 
+char_ふ="フ"; char_ぶ="ブ"; char_ぷ="プ"; char_へ="ヘ"; 
+char_べ="ベ"; char_ぺ="ペ"; char_ほ="ホ"; char_ぼ="ボ"; 
+char_ぽ="ポ"; char_ま="マ"; char_み="ミ"; char_む="ム"; 
+char_め="メ"; char_も="モ"; char_ゃ="ャ"; char_や="ヤ"; 
+char_ゅ="ュ"; char_ゆ="ユ"; char_ょ="ョ"; char_よ="ヨ"; 
+char_ら="ラ"; char_り="リ"; char_る="ル"; char_れ="レ"; 
+char_ろ="ロ"; char_ゎ="ヮ"; char_わ="ワ"; char_ゐ="ヰ"; 
+char_ゑ="ヱ"; char_を="ヲ"; char_ん="ン"; char_ゔ="ヴ"; 
+char_ゕ="ヵ"; char_ゖ="ヶ"; 
+
+main() {
+	#read the input characters one by one
+	for ((i=0;i<=length;i++)); do
+	  char=${msg:$i:1}
+  	varname=char_$char
+	  # result is set to the contents of the variable named char_$char 
+	  #(ie char_あ, char_い ... char_う); if we have char=あ, varname will be "char_あ", etc
+	  result+=${(P)varname}
+	done
+
+	printf "%s\n" "$result"
+}
+
+if [[ -n "$1" ]]; then
+  msg="$@"
+  length=${#msg}
+  main
+else
+  while read msg; do
+    length=${#msg}
+    main
+    result=
+  done
+fi
+
+exit 0

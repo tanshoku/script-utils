@@ -1,0 +1,55 @@
+#!/bin/zsh
+# Author:       Elizabeth Bodaneze                              2019
+# Description:  daemon to make a hard drive sleep after an interval,
+#               since hdparm -s won't work
+# Requires:     zsh, hdparm, proc, dstat
+# Usage:        sudo sd_sleep
+
+#config
+interval=(60 600)
+disks=(sda sdb)
+#the position of the values on the interval array correspod to
+#the position of the values on the disks array =)
+
+_kill_dstat(){
+  #kills the subshell the _sleep_drive function is running on,
+  #and this will cause dstat to die with a broken pipe, eh
+	kill $function_pids[@]
+	exit
+}
+
+_sleep_drive() {
+  dstat --noupdate --nocolor --noheaders -dD $1 $2 | while read line
+  do
+    #if there was no disk I/O, it should output "0     0" and we can
+    #issue the sleep command
+    if [[ "$line" == "0     0" ]]; then
+      if [[ "$line" != "$oldline" ]]; then
+        printf "$(date +'%d-%m %T :')"
+        hdparm -y /dev/$1
+        printf '\n'
+      fi
+    fi
+    oldline=$line
+  done
+}
+
+count=1
+
+for disk in $disks[@] ; do
+  _sleep_drive $disk $interval[count] &
+  pid+="$! "
+  ((count++))
+done
+
+#trap ^C and SIGTERM so we can kill the subshells...
+trap _kill_dstat INT
+trap _kill_dstat TERM
+
+#turns our messy variable into an array
+function_pids=($(echo $pid))
+
+#do nothing, so we can wait for a kill signal =P
+while [[ -d /proc/$function_pids[1] ]]; do
+  read -sk1 -t60
+done

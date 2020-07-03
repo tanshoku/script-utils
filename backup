@@ -1,0 +1,348 @@
+#!/bin/zsh
+# by:                Elizabteh Bodaneze     2017-2020
+# Requires:          zsh, awk, rsync
+# Optional requires: ssh, nmap, parallel 
+# Usage:             backup [backup|restore|remote [restore|check|remote]] [suspend] 
+#
+# V0.1-1.0 initial development
+# V1.3 added force-new option
+# V2.0 major overhaul of backup system, does not use timestamps anymore, use incremental+current backups only
+
+generate_dotfile() {
+  local drive_kname
+  local partition_kname
+  local encrypted_partition
+
+
+  echo ".backuprc file not found, creating a new one."
+  lsblk -po NAME,FSTYPE,SIZE,MOUNTPOINT,VENDOR,MODEL,HOTPLUG,KNAME
+  read "drive_kname?Please input your backup drive's KNAME (last column): "
+  read "partition_kname?Please input your backup partition's KNAME (last column): "
+
+  if [[ -d /media/$USER ]] && [[ -d /media/$USER/backup ]]; then
+    echo "backup_root=/media/$USER/backup" >> $HOME/.backuprc
+  elif [[ -d /media/$USER ]]; then
+    sudo mkdir /media/$USER/backup
+    echo "backup_root=/media/$USER/backup" >> $HOME/.backuprc
+  elif [[ -d /mnt ]] && [[ -d /mnt/backup ]]; then
+    echo "backup_root=/mnt/backup" >> $HOME/.backuprc
+  elif [[ -d /mnt ]]; then
+    sudo mkdir /mnt/backup
+    echo "backup_root=/mnt/backup" >> $HOME/.backuprc
+  else
+    read "backup_root?No mountpoint found! Please specify it manually (eg: /mnt/backup):"
+    echo "backup_root="$backup_root >> $HOME/.backuprc
+  fi
+
+
+  local partition_uuid=$(lsblk -no UUID $partition_kname)
+  echo "backup_source=$HOME/" >> $HOME/.backuprc
+  echo "exclude=.thumbnails" >> $HOME/.backuprc
+  echo "drive_name=\""$(lsblk -no VENDOR,MODEL $drive_kname)"\"" >> $HOME/.backuprc
+  echo "partition_uuid="$partition_uuid >> $HOME/.backuprc
+
+
+  if [[ $(lsblk -no FSTYPE $partition_kname) = "crypto_LUKS" ]]; then
+    read -s "passphrase?Please enter your passphrase: "
+    printf $passphrase | sudo cryptsetup luksOpen UUID=$partition_uuid backup || exit $?
+    if [[ $(lsblk -no FSTYPE /dev/mapper/backup) = "ext4" ]]; then
+      echo "drive_is_encrypted=1" >> $HOME/.backuprc
+      echo "passphrase="$passphrase >> $HOME/.backuprc
+    else echo
+      echo "Your destination partition is not ext4, metadata may be lost on backup! Exiting!"
+      exit 2
+    fi
+  elif [[ $(lsblk -no FSTYPE $partition_kname) = "ext4" ]]; then
+    echo "drive_is_encrypted=0" >> $HOME/.backuprc
+  else
+    echo "Your destination partition is not ext4, metadata may be lost on backup! Exiting!"
+    exit 2
+  fi
+
+  echo "destination_mac=" >> $HOME/.backuprc
+  echo "subnet=" >> $HOME/.backuprc
+  chmod 600 $HOME/.backuprc
+  return 0
+}
+
+
+mount_drive() {
+  echo "Please connect the backup drive ("$drive_name") and press any key to proceed..."
+  read -k1 -s
+
+
+  if [[ $drive_is_encrypted = "1" ]]; then
+    printf $passphrase | sudo cryptsetup luksOpen UUID=$partition_uuid backup || exit $?
+    sudo mount /dev/mapper/backup $backup_root || exit $?
+  else
+    sudo mount UUID=$partition_uuid $backup_root || exit $?
+  fi
+}
+
+
+umount_drive() {
+  cd ~
+  echo "Syncing..."
+  sync || exit $?
+  sudo umount $backup_root || exit $?
+  if [[ $drive_is_encrypted = "1" ]]; then
+    sudo cryptsetup luksClose backup || exit $?
+  fi
+}
+
+get_current_file_list() {
+   echo "Creating current backup..."
+   current_tmpfile=$(mktemp)
+   mkdir /tmp/tmp-backup
+   rsync -avn $backup_source /tmp/tmp-backup --exclude-from=/tmp/exclude_me | sed '1d' | head -n -3 > $current_tmpfile
+   if [[ "$1" == "remote" ]]; then
+     < $current_tmpfile ssh $USER@$destination_ip 'cat > backup/current_backup'
+     rm $current_tmpfile
+   else
+     mv $current_tmpfile $backup_root/current_backup
+   fi
+   rmdir /tmp/tmp-backup
+}
+
+rsync_call() {
+  echo "Creating$2"$1" backup..."
+  rsync -ah --exclude-from=/tmp/exclude_me $3 --info=progress2 $backup_source $backup_root/$1 || exit $?
+}
+
+
+backup() {
+  local backup_root_size=$(df --output=size $backup_root | sed '1d' | tr -cd '[0-9]')
+  local free_space=$(df --output=avail $backup_root | tr -cd '[0-9]')
+  local backup_size=$(du -X /tmp/exclude_me -s0 $backup_source | tr -cd '[0-9]')
+
+
+  if (( (( backup_root_size - backup_size )) <= 4096 )); then
+    echo "Your backup source directory is bigger than your destination partition! Exiting!"
+    exit 4
+  else
+    if [[ -d incremental ]]; then
+      echo "Last backup was on "$(find -maxdepth 1 -name incremental_backup.info -printf "%Aa, %Ad %Ab %AY %AH:%AM\n")"..."
+
+      if (( (( free_space - backup_size )) <= 4096)); then
+        echo "Not enough free space on the backup destination!"
+        echo "Cleaning up incremental backup directory to free up some space..."
+        read "confirmation?Please type YES. to confirm you want to clean up the incremental backup directory: "
+
+        if [[ $confirmation = "YES." ]]; then
+          rsync -ahi --delete --exclude-from='/tmp/exclude_me' $backup_source $backup_root"/incremental" > "incremental_cleaned_on_"$now".info" || exit $?
+          echo "Incremental backup was cleaned up on "$today". Please check the file incremental_cleaned_on_"$now".info if you want to see what was changed." >> incremental_backup.info
+          local free_space=$(df --output=avail $backup_root | tr -cd '[0-9]')
+          if (( (( free_space - backup_size )) <= 4096)); then
+            echo "Could not free up enough space for a new backup! Please clean up manually!"
+            exit 4
+          fi
+        else
+          echo "exiting..."
+          exit 1
+        fi
+      fi
+
+      echo "Incremental backup on "$today"." >> incremental_backup.info
+      rsync_call incremental ' '
+
+    else
+      mkdir incremental
+      echo "First backup, created on "$today"." > incremental_backup.info
+      rsync_call incremental ' first '
+    fi
+
+    if [[ -d current ]]; then
+      echo "Current backup on "$today"." >> current_backup.info
+      get_current_file_list
+    else
+      mkdir current
+      echo "First backup, created on "$today"." > current_backup.info
+      get_current_file_list
+    fi
+
+  fi
+}
+
+
+rsync_remote_call() {
+  echo "Creating$2"$1" backup..."
+  backup_root=$USER@$destination_ip:$HOME/backup
+  backup_root="$backup_root/$1"
+  rsync -azh --compress-level=9 --exclude-from=/tmp/exclude_me $3 --info=progress2 $backup_source -e 'ssh -l '$USER'' $backup_root || exit $?
+}
+
+
+remote_backup() {
+  local backup_root_size=$(ssh $USER@$destination_ip df --output=size / | sed '1d' | tr -cd '[0-9]')
+  local free_space=$(ssh $USER@$destination_ip df --output=avail / | tr -cd '[0-9]')
+  local backup_size=$(du -X /tmp/exclude_me -s0 $backup_source | tr -cd '[0-9]')
+
+
+  if (( (( backup_root_size - backup_size )) <= 4096 )); then
+    echo "Your backup source directory is bigger than your destination partition! Exiting!"
+    exit 4
+  else
+    if ssh $USER@$destination_ip ls backup | grep incremental > /dev/null ; then
+      echo "Last backup was on "$(ssh $USER@$destination_ip find backup '-maxdepth 1 -name incremental_backup.info -printf "%Aa, %Ad %Ab %AY %AH:%AM\n"')"..."
+
+      if (( (( free_space - backup_size )) <= 4096)); then
+        echo "Not enough free space on the backup destination!"
+        echo "Cleaning up incremental backup directory to free up some space..."
+        read "confirmation?Please type YES. to confirm you want to clean up the incremental backup directory: "
+
+        if [[ $confirmation = "YES." ]]; then
+          rsync -ahi --delete --exclude-from='/tmp/exclude_me' $backup_source $backup_root"/incremental"\
+            | ssh $USER@$destination_ip 'cat > incremental_cleaned_on_$now.info' || exit $?
+          echo "Incremental backup was cleaned up on "$today". Please check the file incremental_cleaned_on_"$now".info if you want to see what was changed."\
+            | ssh $USER@$destination_ip 'cat >> backup/incremental_backup.info'
+          local free_space=$(ssh $USER@$destination_ip df --output=avail / | tr -cd '[0-9]')
+          if (( (( free_space - backup_size )) <= 4096)); then
+            echo "Could not free up enough space for a new backup! Please clean up manually!"
+            exit 4
+          fi
+        else
+          echo "exiting..."
+          exit 1
+        fi
+      fi
+
+      echo "Incremental backup on "$today"."\
+        | ssh $USER@$destination_ip 'cat >> backup/incremental_backup.info'
+      rsync_remote_call incremental ' '
+
+    else
+      ssh $USER@$destination_ip mkdir backup/incremental
+      echo "First backup, created on "$today"."\
+        | ssh $USER@$destination_ip 'cat > backup/incremental_backup.info'
+      rsync_remote_call incremental ' first '
+    fi
+
+    if ssh $USER@$destination_ip ls backup | grep current > /dev/null ; then
+      echo "Current backup on "$today"."\
+        | ssh $USER@$destination_ip 'cat >> backup/current_backup.info'
+      get_current_file_list remote
+    else
+      ssh $USER@$destination_ip mkdir backup/current
+      echo "First backup, created on "$today"."\
+        | ssh $USER@$destination_ip 'cat > backup/current_backup.info'
+      get_current_file_list remote
+    fi
+
+  fi
+
+  sleep 5
+  ssh $USER@$destination_ip sudo systemctl suspend
+}
+
+
+restore() {
+  local PS3="Please choose which backup you want to restore: "
+  local backup_option
+
+  select backup_option in incremental current; do
+    if [ -n "$backup_option" ]; then
+      echo "Restoring "$backup_option" backup from "$1"..."
+      local restore_from=$backup_root/$backup_option/
+      if [[ $1 = "local" ]]; then
+        rsync -ah --info=progress2 $restore_from $backup_source || exit $?
+      elif [[ $1 = "remote" ]]; then
+        rsync -azh --info=progress2 -e 'ssh -l '$USER'' $restore_from $backup_source || exit $?
+      fi
+      return $?
+    fi
+  done
+}
+
+
+remote_check() {
+  echo "Checking integrity of the current backup..."
+  ssh $USER@$destination_ip find "backup/current ! -empty -type f -print0 | parallel -0 md5sum" > /tmp/md5_current_backup &
+  local pid_ssh=$!
+  echo "Running checks in parallel, please wait..."
+  find . -type d \( $(printf "-path */%s -o " $(cat "/tmp/exclude_me")) -false \) -prune -o -type f -print0 \
+  | parallel --bar -0 md5sum > /tmp/md5_current_local 
+  printf "\r"
+  printf "Waiting for remote check to complete..."
+
+  local d
+  local s
+#	local chars="/-\|"
+	local chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+	printf "\e[?25l"
+	while [[ -d /proc/$pid_ssh ]]; do
+	  ((d++))
+	  if [ "${d}" = '10' ]; then
+	    printf "."
+	    d='0'
+	  fi
+	  for (( s=0; s<${#chars}; s++ )); do
+	    printf "${chars:$s:1} \b\b"
+	    sleep 0.05
+	  done
+	done
+	printf "\e[?25h"
+  printf "\n"
+
+  sed -i 's/backup\/current/\./g' /tmp/md5_current_backup
+	cat /tmp/md5_current_backup /tmp/md5_current_local\
+	| sort -k 2\
+	| uniq -w32 -u\
+  | ssh $USER@$destination_ip 'cat > backup/current_backup_check.info'
+
+}
+
+
+main() {
+  now=$(date +%s)
+  today=$(date -R)
+  echo $exclude | sed 's/:/\n/g' > /tmp/exclude_me
+
+  if [[ $1 = "remote" ]]; then
+    echo "Scanning local network..."
+    destination_mac=$(echo $destination_mac | tr -s '[:lower:]' '[:upper:]')
+    destination_ip=$(sudo nmap -sP -PS22 $subnet | sed -n '/Host/d;/'$destination_mac'/ {x;p;d}; x' | tr -d '[:alpha:] ' | sed '2,$d')
+    backup_root=$USER@$destination_ip:$HOME/backup
+
+    #if the remonte host is not online...
+    [[ -z $destination_ip ]] && rm /tmp/exclude_me && exit 1
+
+    if [[ -z $2 ]]; then
+      remote_backup
+    elif [[ $2 = "restore" ]]; then
+      restore remote
+    elif [[ $2 = "check" ]]; then
+      remote_check
+    fi
+  else
+    if [[ -n $mount_drive ]] ; then
+      mount_drive
+    fi
+    cd $backup_root
+    if [[ $1 = "backup" ]] || [[ -z $1 ]]; then
+      backup
+    elif [[ $1 = "restore" ]]; then
+      restore local
+    else
+      echo "E: invalid operation "$1
+      echo "usage: backup [backup|restore|remote [restore|check|remote]] [suspend]"
+      exit 8
+    fi
+    if [[ -n $mount_drive ]] ; then
+      umount_drive
+    fi
+  fi
+
+  rm /tmp/exclude_me
+}
+
+
+if [[ -a $HOME/.backuprc ]]; then
+  . $HOME/.backuprc
+else
+  generate_dotfile
+  . $HOME/.backuprc
+fi
+
+main $1 $2
+exit 0

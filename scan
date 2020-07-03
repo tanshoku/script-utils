@@ -1,0 +1,101 @@
+#!/bin/zsh
+#automatize scanning drawings =)
+#Elizabeth Bodaneze
+#device='hpaio:/usb/Photosmart_C3100_series?serial=BR6B3GQ07V04KV'
+
+scan_error() {
+  echo "Usage: scan -[a #] -[g|h|c] -[L] -[n]
+
+Options:
+  a #           positive integer, the amount of pages you wish to scan
+  g             grayscale
+  h             high contrast grayscale
+  c             colour
+  C             high resolution colour, don't adjust contrast
+  L             rotate the image 270 degrees clockwise
+  n             do not prepend the filename with \"sketch\"
+  b             do not crop the page
+
+Default options are: scan 1 g"
+  exit 1
+}
+
+scan() {
+  local i=1
+  local page=0
+  local prefix="sketch"
+  local filename=$prefix$(date +%y%m%d)-$i.jpg
+  local total_pages=1
+  local mode=Gray
+  local mode_short="g"
+  local brightness_contrast="0x0"
+  local rotation=0
+  local dpi=200dpi
+  local l_margin=0.2mm
+  local t_margin=0.2mm
+  local x_margin=208mm
+  local y_margin=294.8mm
+
+  while getopts ":bnghcCLa:" opt; do
+    case "$opt" in
+      "b") local l_margin=0mm ; local t_margin=0mm ; local x_margin=215.9mm ; local y_margin=296.926mm ;;
+      "n") local prefix=""; local filename=$prefix$(date +%y%m%d).jpg; local np="\e[90mn\e[0m" ;;
+      "a") local total_pages=$OPTARG; local filename=$prefix$(date +%y%m%d)-$i.jpg ;;
+      "g") local mode=Gray; local brightness_contrast="0x0"; local mode_short="g" ;;
+      "h") local mode=Gray; local brightness_contrast="20x29"; local mode_short="\e[1mh\e[0m" ;;
+      "c") local mode=Color; local brightness_contrast="20x29"; local mode_short="\e[94;1mc\e[0m" ;;
+      "C") local mode=Color; local brightness_contrast="0x0"; local dpi=600dpi; local mode_short="\e[96;1mC\e[0m" ;;
+      "L") local rotation=270; local rot="\e[32mL\e[0m";;
+      "?") scan_error;;
+    esac
+  done
+
+
+  while [[ -a $filename ]]; do {
+    ((i++))
+    local filename=$prefix$(date +%y%m%d)-$i.jpg
+    warn="\e[33;1m (!+$(($i-1)))\e[0m"
+    }
+  done
+
+
+  local first=$i
+  local last=$total_pages
+  (( last = i + total_pages ))
+
+
+  for ((i=first;i<last;i++)); do {
+#    if (( $last == 1 )); then
+#      local filename=$prefix$(date +%y%m%d).jpg
+#    elif (( $last >= 2 )); then
+     local filename=$prefix$(date +%y%m%d)-$i.jpg
+#    fi
+
+
+    (( page = i - first + 1 ))
+    printf "\rProgress: 0.0%%   -  Scanning page $page/$total_pages ($filename$warn)...\t [$total_pages$mode_short$rot$np]\r"
+
+    scanimage -p --mode $mode --resolution $dpi --format=tiff --compression=None -l $l_margin -t $t_margin -x $x_margin -y $y_margin \
+    | convert -quality 96 -rotate $rotation -brightness-contrast -$brightness_contrast tiff:- $filename\
+    || exit $?
+
+
+    if (( page != total_pages)); then
+      tput el
+      printf "Done page $page/$total_pages ($filename$warn). Please insert the next page and press any key to proceed..."
+      read -k1 -s
+    else
+      tput el
+      printf "Done page $page/$total_pages ($filename$warn). All pages done, exiting.\r"
+      sleep 2
+      tput el
+      printf "\r"
+      return 0
+    fi
+    tput el1
+    warn=''
+  }
+  done
+}
+
+scan $@

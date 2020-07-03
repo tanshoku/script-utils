@@ -1,0 +1,78 @@
+#!/bin/zsh
+
+#threshold=4188
+threshold=$1
+side=48
+extensions="png|jpeg|jpg"
+movimgs=1
+#
+#
+diffR=0
+diffG=0
+diffB=0
+
+#files=( $( find . | grep -iE ${extensions} ))
+files=( $( ls -1 | grep -iE ${extensions} ))
+nofiles=${#files[@]}
+startpoint=2
+(( size = side * side * 3 ))
+[[ -n $movimgs ]] && mkdir "tempdup"
+
+#pre-calculate the hexdump arrays so it's faster
+#
+for ((i=1;i<=nofiles;i++)) ; do
+  printf '\rProcessing %s...' $files[i]
+  hd_img[i]=$(convert -resize ${side}x${side}\! "$files[i]" ppm:- | sed '1,3d' | hexdump -ve '"0x" 1/1 "%02x" " "')
+  printf '\e[K'
+
+  img=( $(echo $hd_img[i]) )
+
+  for ((x=0;x<size;x+=3)) ; do
+    (( hdR[i] = hdR[i] + img[x] ))
+    (( hdG[i] = hdG[i] + img[x+1] ))
+    (( hdB[i] = hdB[i] + img[x+2] ))
+  done
+done
+
+printf '\n'
+
+
+for ((x=1;x<=nofiles;x++)) ; do
+  for ((y=startpoint;y<=nofiles;y++)) ; do
+
+    printf "comparing %s and %s" $files[x] $files[y]
+
+    (( diffR = hdR[x] - hdR[y] ))
+    (( diffG = hdG[x] - hdG[y] ))
+    (( diffB = hdB[x] - hdB[y] ))
+
+    printf " - \e[31mR:%s\e[0m \e[32mG:%s\e[0m \e[34mB:%s\e[0m" $diffR $diffG $diffB
+
+    (( mask = diffR >> 63 )) ; (( diffR = ( mask + diffR ) ^ mask ))
+    (( mask = diffG >> 63 )) ; (( diffG = ( mask + diffG ) ^ mask ))
+    (( mask = diffB >> 63 )) ; (( diffB = ( mask + diffB ) ^ mask ))
+
+    if (( diffR <= threshold && diffG <= threshold && diffB <= threshold )) ; then
+      printf " - \e[31m probably the same\e[0m\e[K\n"
+      if [[ -n $movimgs ]] ; then
+        dup_dir=tempdup/$( echo $files[x] | cut -d'.' -f1 )
+        [[ -a $dup_dir ]] || mkdir $dup_dir
+        if [[ -a $files[x] ]] ; then
+          mv $files[x] $dup_dir
+        fi
+        if [[ -a $files[y] ]] ; then
+          mv $files[y] $dup_dir
+        fi
+      fi
+    else
+      printf " - \e[32m probably not the same\e[0m\e[K\r"
+    fi
+
+    (( diffR = 0 ))
+    (( diffG = 0 ))
+    (( diffB = 0 ))
+  done
+  (( startpoint++ ))
+done
+
+printf '\n'

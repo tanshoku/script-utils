@@ -1,0 +1,12 @@
+#!/bin/zsh
+
+FUNCNEST=-1
+
+_factorial() {
+  (( $1 == 0 )) && return 1
+  (( $1 >= 1 )) && _factorial $(( $1 - 1 )) ; return $(( $1 * $? ))
+}
+
+_factorial $@
+
+printf "%s\n" $?

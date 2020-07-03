@@ -1,0 +1,48 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze 2018
+
+cleanup() {
+  #skip one line and unhide the cursor
+	printf "\n\e[?25h"
+	exit 0
+}
+
+converts() {
+    typeset -Z2 -F2 u
+    typeset -Z2 -F2 ms
+    typeset -Z2 h
+    typeset -Z2 m
+    typeset -Z2 s
+    #we have to have a separate variable for no decimals and decimals
+    t=$1
+    u=$2
+
+    d=$((t/60/60/24))
+    h=$((t/60/60%24))
+    m=$((t/60%60))
+    s=$((t%60))
+    #idk how this works, but it leaves only the decimal digits
+    ms=$((u%100))
+
+    if [[ $d > 0 ]]; then
+            [[ $d = 1 ]] && printf "$d day, " || printf "$d days, "
+    fi
+    printf "\r$h:$m:$s.$ms"
+}
+
+typeset -F 2 SECONDS
+
+#hide the cursor
+printf "\e[?25l"
+
+converts $SECONDS
+printf " - Press q to quit, l for lap\r"
+
+until [[ "$var" == "q" ]]; do
+  read -t 0.01 -sk1 "var?"
+  [[ "$var" == "l" ]] && echo && var=
+  converts ${SECONDS%.*} $SECONDS
+done
+
+cleanup

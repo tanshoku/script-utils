@@ -1,0 +1,63 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze 2018
+# Usage:        timer 1h 23m 45s -or- timer 3600
+
+cleanup() {
+  #return to tbe beginning of the line and unhide the cursor
+	printf "\r\e[?25h"
+	exit 0
+}
+
+converts() {
+    local t=$1
+
+    typeset -Z2 h
+    typeset -Z2 m
+    typeset -Z2 s
+    local d=$((t/60/60/24))
+    local h=$((t/60/60%24))
+    local m=$((t/60%60))
+    local s=$((t%60))
+
+    if [[ $d > 0 ]]; then
+            [[ $d = 1 ]] && printf "$d day, " || printf "$d days, "
+    fi
+    printf "\r$h:$m:$s"
+}
+
+until [[ -z $1 ]] ; do
+ temp=$(echo "$1" | tr -cd '[:digit:]')
+ case "$1" in
+   *[0-9]*s) ((t=temp+t)) ;;
+   *[0-9]*m) ((t=(60*temp)+t)) ;;
+   *[0-9]*h) ((t=(60*60*temp)+t)) ;;
+   *[0-9]*d) ((t=(24*60*60*temp)+t)) ;;
+   *[0-9])   ((t=temp+t)) ;;
+ esac
+ shift
+done
+temp=
+
+#hide the cursor
+printf "\e[?25l"
+
+i=$(( t - SECONDS ))
+converts $i
+printf " - Press q to quit\r"
+
+until (( SECONDS == t )) ; do
+  read -t 1 -sk1 "var?"
+  [[ "$var" == "q" ]] && cleanup
+  ((i = t - SECONDS ))
+  converts $i
+done
+
+while : ; do
+  beep -f 4000 -l 100 -D 75 -r 4
+  if read -t 0.350 -sk1 ; then
+    break
+  fi
+done
+
+cleanup

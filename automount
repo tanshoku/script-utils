@@ -1,0 +1,105 @@
+#!/bin/zsh
+# mounting script by Elizabeth Bodaneze
+
+_mount() {
+  local user_id=$UID
+  local group_id=$GID
+  local i=0
+  local label
+
+  if [[ "$part_type" = "crypto_LUKS" ]]; then
+    sudo cryptsetup luksOpen "$part_name" "luks_$kname" || return $?
+    part_name="/dev/mapper/luks_$kname"
+  fi
+
+
+  label=$(lsblk -no LABEL "$part_name")
+  if [[ -z $label ]]; then
+    label="$kname"
+  fi
+
+
+  while [[ -d /media/$USER/$label ]]; do
+    label=$(lsblk -no LABEL "$part_name")
+    if [[ -z $label ]]; then
+      label="$kname"
+    fi
+    ((i++))
+    label=$label-$i
+  done
+#  sudo mkdir -p /media/$USER/$label
+## make sure you can r/w on /media
+   mkdir -p "/media/$USER/$label"
+
+
+  part_type=$(lsblk -no FSTYPE "$part_name")
+  if [[ $part_type = "ext2" ]] || [[ $part_type = "ext3" ]] || [[ $part_type = "ext4" ]]; then
+    sudo mount "$part_name" "/media/$USER/$label" || return $?
+  elif [[ $part_type = "fat" ]] || [[ $part_type = "vfat" ]] || [[ $part_type = "iso9660" ]]; then
+    sudo mount -o "uid=$user_id,gid=$group_id" "$part_name" "/media/$USER/$label" || return $?
+  else
+    echo "Bad partition type, please fix this you lazy CAT"
+  fi
+
+  if [[ "$_cd" == "1" ]]; then
+    cd "/media/$USER/$label"
+  elif [[ "$_cd" == "2" ]]; then
+    thunartab "/media/$USER/$label"
+  else
+    echo "Mounted on /media/$USER/$label"
+  fi
+}
+
+_umount() {
+  local mountpoint
+
+  mountpoint=$(lsblk -no MOUNTPOINT "$part_name" | tr -d '\n')
+#  sudo -v
+  printf "Syncing..."
+  sync || return $?
+  printf "\r"
+  sudo umount "$mountpoint" || return $?
+#  sudo rmdir $mountpoint || return $?
+   rmdir "$mountpoint" || return $?
+
+
+  if [[ $(lsblk -no FSTYPE "$part_name" | sed 2d) = "crypto_LUKS" ]]; then
+    sudo cryptsetup luksClose "luks_$kname" || return $?
+  fi
+}
+
+getpart() {
+  lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,VENDOR,MODEL,LABEL,KNAME \
+  | grep -v 'sda\|albireo'
+  read -r "kname?Please input your partition's kname: "
+  part_name="/dev/$kname"
+  part_type=$(lsblk -no FSTYPE "$part_name")
+  if [[ "$kname" = "sda" ]]; then
+    return 255
+  fi
+}
+
+
+if [[ "$1" =~ "sd" ]]; then
+  kname="$1"
+  part_name="/dev/$kname"
+  part_type=$(lsblk -no FSTYPE "$part_name")
+else
+  getpart
+fi
+
+_cd=0
+[[ "$1" == "-cd" || "$2" == "-cd" ]] && _cd=1
+[[ "$1" == "-fm" || "$2" == "-fm" ]] && _cd=2
+
+call=${0##*/}
+
+if [[ "$call" == "automount" ]]; then
+  _mount
+elif [[ "$call" == "autoumount" ]]; then
+  _umount
+else
+  return 1
+fi
+
+return 0

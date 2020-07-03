@@ -1,0 +1,516 @@
+#!/bin/zsh
+#password manager by Elizabeth Bodaneze (https://github.com/idioticbat/) 2018
+#dependencies: imagemagick aspell aspell-en zsh
+#
+#v0.2 - most code, xkcd passphrase added later
+#v0.5 - code cleanup, added comments, backup, and batch/interactive mode
+#v0.7 - added salting
+#v1.0 - operate on pipes and variables only, so both the unencrypted database and the key never touch the disk
+#     - moved awk processing into the script
+#v1.1 - added backups
+#v1.2 - salt goes on an offset on the database, added obfuscated dump, parse the timestamp into a readable format
+
+#so we can calculate a square root later
+zmodload -i zsh/mathfunc
+
+master=
+confirmation=0
+
+help="Try 'passave --help' for more information.\n"
+error="passave: invalid option -- $@\n$help"
+help_text="\
+passave - password manager
+
+Options:
+    -a [s,u]             - add a password/service/user to the database
+    -g [#,s,u] [r|a|m|p] - add a service and user to the database,
+                           but automatically generates a (random) password for you
+    -r [s,u]             - remove a password from the database
+    -u [s,u]             - updates the password for the [s]ervice and [u]ser
+    -p, -c [s,u]         - retrieve a password for a service and user,
+                           and prints to the terminal or copies to the clipboard
+                           s - service
+                           u - user
+                           # - number of characters in the password
+                               or words, if passphrase
+                           r - random (printable) bytes
+                           a - random (alphanumeric) bytes
+                           m - md5sum of a passphrase
+                           p - xkcd-style passphrase
+    -d                   - dump the whole database in plaintext to the terminal
+    -o                   - dump the whole database to the terminal with passwords obfuscated
+    -l                   - lists all services and users on the database
+    -m                   - change master passphrase
+    -k                   - backup the database
+    -s                   - restore the backup, if any
+    -b                   - batch/interactive mode
+    --help               - this help screen
+"
+
+
+cleanup() {
+  service=
+  user=
+  random=
+  sum=
+  sum_seed=
+  passphrase=
+  characters=
+  type=
+  expiration=
+  key=
+  master=
+  password=
+  password_line=
+  confirmation=0
+  fresh= 
+  option=
+  #only remove files if not on batch mode, otherwise just clean up the variables
+  if [[ -z $batch ]]; then
+    #the master passphrase has to stay on memory until we're done
+    #cause we might need it for a new key with fresh salt
+    master_passphrase=
+    #these are also needed until the end
+    database=
+    md5sum_database=
+    salt=
+  fi
+}
+
+
+parse_options() {
+  while [[ -v 1 ]]; do
+	  case "$1" in
+	    "s") shift; service="$1";;
+      "u") shift; user="$1";;
+      "r") random=print;;
+      "a") random=alnum;;
+      "m") sum=1; shift; sum_seed="$1";;
+      "p") passphrase=1;;
+      *[0-9]*) characters="$1";;
+    esac
+    shift
+  done
+  #prompt the user for manual input of the values that were not set at the invocation time
+ 	[[ -z $service ]] && read -r "service?Enter the service name: "
+ 	[[ -z $user ]] && read -r "user?Enter the user name: "
+ 	[[ -n $random && -z $characters ]] && read "characters?Enter the number of characters on the new password: "
+ 	[[ -n $passphrase && -z $characters ]] && read "characters?Enter the number of words on the new passphrase: "
+ 	[[ -n $sum && -z $sum_seed ]] && read -r "sum_seed?Enter the seed: "
+}
+
+
+add_new() {
+  type=plain
+	if [[ "$1" == "auto" ]]; then
+    [[ -n $random ]] && password=$(cat /dev/urandom | tr -cd "[:$random:]" | head -c $characters)
+    [[ -n $sum ]] && password="$sum_seed" && type=md5sum
+    #generate a xkcd-style passphrase, by dumping the aspell dictionary, one word per line,
+    #and getting some random words from that list,
+    #then converting the line breaks into spaces and removing the trailing space
+    [[ -n $passphrase ]] && password=$(aspell -d en dump master | shuf -n $characters | tr -s '\n' ' ' | sed 's/ $//')
+	else
+	  until [[ "$confirmation" == "$password" ]]; do
+  	  read -rs "password?Please enter the password (won't be echoed): "
+	    printf "\n"
+	    read -rs "confirmation?Please confirm the password (won't be echoed): "
+	    printf "\n"
+      [[ "$confirmation" != "$password" ]] && printf "\e[91mPasswords do not match!\e[0m\n"
+    done
+   	confirmation=0
+	fi
+	read "expiration?Enter the password expiration time, in days, or press enter for no expiration: "
+	[[ -n $expiration ]] && expiration=$(date -d "$expiration days" +%s)
+
+  #use NUL as delimiter, so we can have passwords containing spaces and all the other printable characters
+  #the line break goes at the beginning of the line, because the variable eats trailing line breaks
+  #so this is the only way to do this
+	database+=$(printf "\n%s\0%s\0%s\0%s\0%s" "$service" "$user" "$type" "$password" "$expiration")
+	#+= adds the data to the variable instead of re-setting it
+}
+
+
+update() {
+  if echo "$database" | grep -a "$service" | grep -a "$user" &> /dev/null; then
+    password_line=$(echo "$database" | grep -a "$service" | grep -a "$user")
+	  database=$(echo "$database" | grep -av "$password_line")
+
+  	#removing a password from the database is just an incomplete update ;)
+	  [[ "$1" == remove ]] && return 0;
+
+    type=0
+
+    until [[ "$type" == "a" || "$type" == "r" || "$type" == "m" || "$type" == "p" || -z $type ]]; do
+      read "type?Enter the password type [a]lphanumeric, [r]andom, [m]d5sum, [p]assphrase, or press enter for manual input: "
+    done
+
+    parse_options "$type"
+
+    if [[ -n $type ]]; then
+      add_new auto
+    else
+      add_new
+    fi
+  else
+    printf "User %s from service %s not found in the database!\n" "$user" "$service"
+  fi
+}
+
+
+retrieve() {
+  #get the line only once, work from there by cutting the needed fields
+  #remember that the order of the fields is
+  #SERVICE\0USER/LOGIN\0TYPE\0PASSWORD\0EXPIRATION_TIMESTAMP
+	password_line=$(echo "$database" | grep -a "$service" | grep -a "$user")
+	type=$(printf "%s" "$password_line" | cut -d "$(printf "\0")" -f3)
+  password=$(printf "%s" "$password_line" | cut -d "$(printf "\0")" -f4 | tr -d '\n')
+  #compute the md5sum of the password seed to get the actual password
+  #that's so you can have a weak-ish seed that yelds a more acceptable password
+  [[ "$type" == md5sum ]] && password=$(printf "%s" "$password" | md5sum | tr -cd "[:xdigit:]")
+  [[ "$1" == "print" ]] && printf "%s\n" "$password"
+  [[ "$1" == "copy" ]] && printf "%s" "$password" | xclip -selection clipboard
+  password_line=
+  password=
+
+  expiration=$(printf "%s" "$password_line" | cut -d "$(printf "\0")" -f5)
+
+  #check if our password is expired and offers the option to change it if it is
+  if [[ -n $expiration ]]; then
+    if (( $(date +%s) >= $expiration )); then
+      printf "\e[91mThis password is expired!\e[0m\n"
+      read "answer?Update? [Y/n]: "
+      printf "\n"
+      if [[ "$answer" == "Y" || "$answer" == "y" || -z "$answer" ]]; then
+        update
+      else
+        cleanup
+        exit 1
+      fi
+    fi
+  fi
+}
+
+
+dump() {
+  date=$(date +%s)
+  #parse the timestamps on the database to a human readable format
+  #and colours the resulting date with green or red depending on 
+  #wether it's expired or not
+  parsed_db=$(echo "$database" | awk  -v date="$date" 'BEGIN { FS="\0"; };
+  {
+      if (NR <= 2) {print $0}
+      if ( $5 ~ /[0-9]/ ) {
+          printf $1 FS; printf $2 FS; printf $3 FS; printf $4 FS
+          timestamp = $5
+          cmd = "date -d @" $5 
+          cmd | getline $5
+          if ( timestamp <= date ) {printf "%c[91m", 27}
+          if ( timestamp > date ) {printf "%c[32m", 27}
+          printf "%s%c[0m", $5, 27
+          print "\n"
+      }
+      else if (NR > 2 ) {print $0}
+  }')
+  #create two named pipes on /tmp to put the database in, so awk can read them twice
+  mkfifo -m 0600 /tmp/.fifo1
+  mkfifo -m 0600 /tmp/.fifo2
+  if [[ "$1" == list ]]; then
+    #remove the type, password and expiration collumns if on list mode
+    parsed_db=$(echo "$database" | cut -d "$(printf "\0")" -f1-2)
+  elif [[ "$1" == obfu ]]; then
+    #obfuscate the passwords by substituting their characters with asterisks
+    parsed_db=$(echo "$parsed_db" | awk 'BEGIN { FS="\0"; };
+    NF >= 1{
+        if (NR <= 2) {print $0}
+        if ( NR > 2 ) {
+            printf $1 FS; printf $2 FS; printf $3 FS
+            system("printf %s \""$4"\" | sed s/./\*/g")
+            print FS $5
+        }
+    }' 2> /dev/null)
+  fi
+  #fork the echo-and-pipe-redirection command to the background (&) otherwise it would block the script
+  #waiting for something to read the other end of the pipe, and never allow awk to actually do that
+  echo "$parsed_db" > /tmp/.fifo1&
+  echo "$parsed_db" > /tmp/.fifo2&
+  #this is the only time where the database could be potentially exposed:
+  #an attacker could set up a script to watch for the creation of those two pipes,
+  #and read them the moment before the awk script below does that;
+  #but if you're dumping the whole database with all your passwords to your terminal,
+  #that's the least of your worries; even if this was piped to awk and then dumped onto the
+  #terminal, an attacker could still read your terminal from /dev/pts/N or /dev/ttyN;
+  #maybe a safer approach would be piping the output of awk to less, so the attacker can't know
+  #where the anonymous pipe would be created; but that would require, first and foremost,
+  #to fix the awk script below to work on an anonymous pipe too.
+  #As a rule of thumb, don't dump the database unless you have a good reason to.
+  awk 'BEGIN { FS=" *\0 *"; OFS="  "; }
+  NR==FNR {
+      for (i=1;i<=NF;i++) {
+          w[i] = (length($i) > w[i] ? length($i) : w[i])
+      }
+      next
+  }
+  {
+      for (i=1;i<=NF;i++) {
+          printf "%-"w[i]"s%s", $i, (i<NF ? OFS : ORS)
+      }
+  }' /tmp/.fifo1 /tmp/.fifo2
+  #remove the named pipes, since we don't need them anymore
+  rm -f /tmp/.fifo1 /tmp/.fifo2
+  parsed_db=
+}
+
+
+xor_key_db() {
+  #while using an external, compiled program to do this would be faster
+  #this is the only quick option I found to pipe the database instead of writind it to a file
+
+  #puts the input of the pipe on a variable, in hex format ;)
+  input=($(</dev/stdin hexdump -v -e '"0x" 1/1 "%02X" " "'))
+  local input_length=${#input[@]}
+  local key_length=${#key[@]}
+
+  for ((i=1;i<=input_length;i++)); do
+    #loop over the key, if it's shorter than the database
+    for ((c=1;c<=key_length;c++)); do
+      (( output = input[i] ^ key[c] ))
+      printf '\'$(printf '%03o' $output)
+      (( i++ ))
+
+      #break the loop in case the input is shorter than the key
+      ((i==input_length)) && c=key_length
+    done
+    c=1
+  done
+  input=
+  output=
+}
+
+
+expand_key(){
+	  master="$salt$master_passphrase"
+
+		#generate the key by recursively hashing the master passphrase
+		#8kB should give a strong enough encryption
+
+		#run everything in a subshell so we can pipe the output to the other commands
+	  key=($(
+	  (while : ; do
+	    master=$(printf "%s" "$master" | sha512sum | tr -cd '[:xdigit:]')
+		  printf $master
+		done) | head -c 16384 | sed 's/.\{2\}/& 0x/g;s/ 0x$//;s/^/0x/'
+		#the sed here adds " 0x" fore every two output bytes, removes the trailing " 0x"
+    #and and adds another "0x" to the beginning of the stream
+		))
+}
+
+
+find_database() {
+    if [[ -f database.png ]]; then
+      #we can operate at the current directory if the database is here
+      printf "\e[93mWorking with the database found at $PWD\e[0m\n"
+  	elif [[ -d ~/.passave ]]; then
+      cd ~/.passave
+      #if the config directory exists but the database doesn't, we need to create a new db
+      ! [[ -f ~/.passave/database.png ]] && fresh=1
+  	else
+  	  #create a new config directory if we didn't find it or the database
+      printf "Creating config directory...\n"
+  	  mkdir -m 700 ~/.passave 2> /dev/null
+      cd ~/.passave
+  	  fresh=1
+  	fi
+}
+
+
+decrypt() {
+  if [[ -z $1 ]]; then
+    find_database
+  fi
+
+  if [[ -z $fresh ]]; then
+  	read -s "master_passphrase?Please input the master passphrase (won't be echoed): "
+  	#get the salt that's stored on the first 64 bytes
+    salt=$(convert database.png ppm:- | sed 1,3d | dd bs=64 count=1 status=none)
+    expand_key
+  else
+    until [[ "$confirmation" == "$master_passphrase" ]]; do
+    	read -s "master_passphrase?Please input the new master passphrase (won't be echoed): "
+   		printf "\n"
+    	read -s "confirmation?Please confirm the new master passphrase (won't be echoed): "
+      [[ "$confirmation" != "$master_passphrase" ]] && printf "\n\e[91mPasswords do not match!\e[0m\n"
+    done
+   	confirmation=0
+   	fresh=
+  fi
+	printf "\n"
+
+  [[ "$1" == "change_master" ]] && return 0
+
+  if [[ -f database.png ]]; then
+    #convert the png to a parseable ppm file, remove the ppm header,
+    #skip the first 64 bytes containing the salt,
+    #decrypt the database and remove the trailing newlines at the end, if any (see finish())
+    database=$(convert database.png ppm:- | sed "1,3d" | dd bs=1 skip=64 status=none | xor_key_db | tr -s '\n')
+
+    #if on batch mode, compute the checksum of the database, so we can check if it was changed later
+    [[ -n $batch ]] && md5sum_database=$(echo "$database" | md5sum | tr -cd "[:xdigit:]")
+
+    if printf "%s" "$database" | head -1 | grep "#passave" &> /dev/null ; then
+      #database succesfully decrypted,
+      #make sure we only run the decryption routine once
+      decrypted=1
+    else
+      #if the header of the file does not contain #passave, the passphrase is probably wrong
+      printf "\e[91mWrong master passphrase!\e[0m\n"
+      cleanup
+      exit 1
+    fi
+  else
+   printf "Database not found, creating new database...\n"
+   database=$(printf "#passave\nSERVICE\0USER/LOGIN\0TYPE\0PASSWORD\0EXPIRATION_TIMESTAMP")
+  fi
+}
+
+
+finish() {
+  #make some salt
+  #this is needed every time because the file was changed and it would be easy to see where it was changed
+  salt=$(head -c64 /dev/urandom)
+  #make a new key with fresh salt
+  expand_key
+
+	size=$(echo "$salt$database" | wc -c)
+	square_side=$((int(ceil(sqrt(size/3))))) #so we can print a neat and pretty square ;)
+	                                         #...divided by 3 because we have three bytes per pixel
+
+  #run everything in subshells so we can pipe the output to other commands
+	(
+	#next we print a header for the PPM file...
+	printf "P6\n$square_side $square_side\n255\n"
+	#...print the salt separated from the database, since it shouldn't be encrypted...
+  printf "%s" "$salt"
+	(echo "$database"
+		 #...fill the missing pixels on the square with line breaks since we don't want missing bits...
+	 	 while (( ( i - 1 ) < ( square_side ** 2 ) )); do
+	 	   printf '\n\n\n' #(remember that every three bytes make one pixel)
+	 	   ((i++))
+	   #...encrypt the database with our key...
+	   done) | xor_key_db
+	#...and pipe the output to convert
+	) | convert ppm:- database.png
+
+	#reasoning to store the database as a PNG image:
+	#<del>storing the salt as a comment
+	# (yes, you could simply store the salt at an offset in the database,
+	#  e.g, first or last 64 bytes)</del> -- just did that , since it allows the salt to be
+	#  any character 0x00-0xff instead of alphanumeric digits that fit in the comment
+	#-looks cool
+  cleanup
+  return 0
+}
+
+main() {
+  [[ -z $decrypted ]] && decrypt #only run the decryption function once
+	case "$1" in
+	  #only cleanup if not on batch mode, otherwise it does the cleanup at the end, only once
+	  #cleanup() is for when the database wasn't changed
+	  #finish() is for when it was changed
+  	"-a") shift; parse_options "$@"; add_new;        [[ -z $batch ]] && finish;;
+  	"-g") shift; parse_options "$@"; add_new auto;   [[ -z $batch ]] && finish;;
+    "-r") shift; parse_options "$@"; update remove;  [[ -z $batch ]] && finish;;
+    "-u") shift; parse_options "$@"; update;         [[ -z $batch ]] && finish;;
+    "-p") shift; parse_options "$@"; retrieve print; [[ -z $batch ]] && cleanup;;
+    "-c") shift; parse_options "$@"; retrieve copy;  [[ -z $batch ]] && cleanup;;
+    "-m") fresh=1; decrypt change_master;            [[ -z $batch ]] && finish;;
+    "-d") dump;      [[ -z $batch ]] && cleanup;;
+    "-o") dump obfu; [[ -z $batch ]] && cleanup;;
+    "-l") dump list; [[ -z $batch ]] && cleanup;;
+  esac
+}
+
+#trap control-c so we can clean up in case of failure
+trap "cleanup; exit 1" INT
+
+#check if we have at least one command line argument
+if (( $# < 1 )); then
+	printf "passave: missing command line option.\n$help"
+	exit 1
+fi
+
+
+case "$1" in
+  "-b") batch=1;;
+  "-k") find_database; cp -a database.png database-backup.png;;
+  "-s") find_database; cp -a database-backup.png database.png &> /dev/null;;
+  -a|-g|-r|-u|-p|-c|-d|-o|-l|-m) main "$@";;
+  "--help") printf "%s" "$help_text"; exit 0;;
+  *) printf "$error"; exit 1;;
+esac
+shift
+
+
+until [[ -z $batch ]]; do
+  [[ -z $decrypted ]] && decrypt #only run the decryption function once
+  if [[ -z "$@" ]]; then
+    #batch mode options are the same as command line arguments,
+    #for the sake of simplicity
+    until [[ "$option" =~ "-a"\
+          || "$option" =~ "-g"\
+          || "$option" =~ "-r"\
+          || "$option" =~ "-u"\
+          || "$option" =~ "-p"\
+          || "$option" =~ "-c"\
+          || "$option" == "-d"\
+          || "$option" == "-o"\
+          || "$option" == "-l"\
+          || "$option" == "-m"\
+          || "$option" == "-k"\
+          || "$option" == "-s"\
+          || "$option" == "-?"\
+          || "$option" == "-x"\
+          || "$option" == "-S"\
+          || "$option" == "-q" ]]; do
+          #put a time limit of five minutes to close the program if the user doesn't do anything.
+          read -t 300 "option?-[a|g|r|u|p|c|d|o|l|m|k|s|?|x|S|q]: " || timeout=1
+          if [[ -n $timeout ]]; then
+            printf "\nSession timed out.\n"
+            finish
+            batch=
+            exit 1
+          fi
+    done
+
+    option=($(echo $option))
+    #options need to be converted into an array
+    #so they can be passed as arguments to the main function
+
+    case "$option[1]" in
+      "-?") printf "%s" "$help_text" | sed '1,2d;22,$d'
+            #crop the help text, for the sake simplicity
+            printf "    -x                   - repeat last comand\n"
+            printf "    -S                   - save changes to database but don't quit\n"
+            printf "    -q                   - finish and quit\n";;
+      "-x") option=($(echo $old_option)); main $option;;
+      "-S") finish;;
+      "-q") batch= ;
+            current_md5sum_database=$(echo "$database" | md5sum | tr -cd "[:xdigit:]")
+            [[ $md5sum_database == $current_md5sum_database ]] && cleanup || finish ;;
+            #only overwrites the database if it was changed
+            #otherwise unsets batch mode and do a simple cleanup
+      "-k") cp -a database.png database-backup.png;;
+      "-s") cp -a database-backup.png database.png &> /dev/null;;
+      -a|-g|-r|-u|-p|-c||-d|-o|-l|-m) main $option;;
+    esac
+    old_option=$option
+  else
+    shift
+    main "$@"
+    until [[ -z $1 ]]; do
+      shift
+    done
+  fi
+  [[ -n $batch ]] && cleanup #unset/reset all the variables
+done
+
+exit 0

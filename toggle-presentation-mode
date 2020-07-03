@@ -1,0 +1,11 @@
+#!/bin/zsh
+#disable presentation mode on xfce4
+#Elizabeth Bodaneze
+
+xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/presentation-mode -T
+presentation_mode=$(xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/presentation-mode)
+if [[ $presentation_mode = "true" ]]; then
+  notify-send "Presentation Mode turned on" -i battery-ac-adapter
+elif [[ $presentation_mode = "false" ]]; then
+  notify-send "Presentation Mode turned off" -i battery-ac-adapter
+fi

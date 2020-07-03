@@ -1,0 +1,97 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze                                                     2019
+# Description:  Script to add Ubuntu PPAs on Debian
+# Requires:     zsh, apt, wget
+# Usage:        sudo debppa -[a|r] ppa
+# References:   https://linuxconfig.org/install-packages-from-an-ubuntu-ppa-on-debian-linux
+
+
+sources_file_location='/etc/apt/sources.list.d'
+
+if ! [[ -a $sources_file_location ]] ; then
+  echo "$sources_file_location not found, are you sure you are running debian?"
+  exit 4
+fi
+
+_error() {
+echo "Usage options:
+
+-a ppa:ppaname/ppa_directory - adds the specified PPA
+-r ppa:ppaname/ppa_directory - removes the specified PPA
+-d                           - use another distro that's not the newest"
+
+ exit 1
+}
+
+_ppa_nonexistant(){
+  echo "There is no PPA named ppa:${ppaname}/${ppa_directory}!"
+  rm $tempfile
+  exit 3
+}
+
+_get_ppa_data() {
+  tempfile=$(mktemp)
+
+  #get ppa_directory from ppa:ppaname/ppa_directoty
+  ppa_directory=$(echo $ppaname | cut -d':' -f2 | cut -d'/' -f2)
+  #get ppaname from ppa:ppaname/ppa_directory
+  ppaname=$(echo $ppaname | cut -d':' -f2 | cut -d'/' -f1)
+
+  #dowload our ppa page
+  wget -4 "https://launchpad.net/~${ppaname}/+archive/ubuntu/${ppa_directory}" -O "${tempfile}" || _ppa_nonexistant
+
+  #get latest ubuntu version for this ppa, or use option from command line
+  if [[ -n $distro ]] ; then
+    ubuntuver=$(grep -A2 "Display sources.list" $tempfile | grep "option value" | cut -d'"' -f2)
+  else
+    ubuntuver=${distro}
+  fi
+
+  #get the source.list deb urls
+  sources=$(printf "#ppa:$ppaname\n" ; grep "^deb" $tempfile | sed 's/<[^>]*>//g' | sed "s/YOUR_UBUNTU_VERSION_HERE/$ubuntuver/g")
+
+  #get key fingerprint
+  key=$(grep signing_key_fingerprint $tempfile | sed 's/.*signing_key_fingerprint//g' | cut -d '"' -f3)
+}
+
+_ppa_add() {
+  #add the key
+  sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "$key"
+
+  #add to sources.list
+  echo $sources | sudo tee $sources_file_location/${ppaname}.list
+}
+
+_ppa_remove() {
+  #remove the key
+  sudo apt-key del "$key"
+
+  #remove from sources.list.d
+  sudo rm $sources_file_location/${ppaname}.list
+}
+
+_main() {
+  _get_ppa_data
+  [[ "$mode" == "add" ]] && _ppa_add
+  [[ "$mode" == "remove" ]] && _ppa_remove
+
+  rm $tempfile
+}
+
+[[ -z $1 || -z $2 ]] && _error
+
+while getopts ":a:r:d:" opt; do
+  case $opt in
+    a) mode=add ; ppaname=$OPTARG    ;;
+    r) mode=remove ; ppaname=$OPTARG ;;
+    d) distro=$OPTARG ;;
+    \?) _error ;;
+  esac
+done
+
+sudo -v
+
+_main
+
+exit 0

@@ -1,0 +1,54 @@
+#!/bin/zsh
+# Author:       Elizabeth Bodaneze  2019
+# Description:  beep morse code messages
+# Requires:     morse/bsdgames, beep
+# Usage:        morsebeep "blah blah blah"
+#
+#
+# Morse code description from Wikipedia:
+#
+# International Morse code is composed of five elements:[1]
+#  -short mark, dot or "dit" (.): "dot duration" is one time unit long
+#  -longer mark, dash or "dah" (-): three time units long
+#  -inter-element gap between the dots and dashes within a character: one dot duration or one unit long
+#  -short gap (between letters): three time units long
+#  -medium gap (between words): seven time units long
+
+
+freq=1000
+dur=50
+
+mangle() {
+  for ((i=0;i<length;i++)); do
+    char=${msg:$i:1}
+
+    (( $i > 0 )) && beepkey+=' -n '
+
+    case $char in
+      ".")beepkey+="-f ${freq} -l ${dur} -D ${dur}" ;;
+      "-")beepkey+="-f ${freq} -l $((dur*3)) -D ${dur}" ;;
+      "!")beepkey+="-f 1 -l $((dur*3))" ;;
+      " ")beepkey+="-f 1 -l ${dur}" ;;
+    esac
+
+  done
+
+  beepkey=($(echo $beepkey))
+  #echo ${beepkey}
+  beep $beepkey
+  beepkey=''
+}
+
+
+echo $@ \
+  | morse -s \
+  | cut -d' ' -f2 \
+  | sed '$d;s/$/!/' \
+  | while read code ; do
+      msg+=${code}
+      msg+=" "
+    done  
+
+    echo $msg | sed 's/!//g'
+    length=${#msg}
+    mangle

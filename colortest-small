@@ -1,0 +1,10 @@
+#!/bin/zsh
+#by Elizabeth Bodaneze
+
+for ((f=40;f<=107;f++)); do
+  (( f == 40 || f == 48 )) && printf "\n    "
+  (( f == 48 )) && (( f = f + 52 ))
+  printf "\e[%sm    \e[0m" "$f"
+done
+
+printf "\n\n"

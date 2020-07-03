@@ -1,0 +1,137 @@
+#!/bin/zsh
+#palette generator by Elizabeth Bodaneze (https://github.com/idioticbat/)
+#based on a concept by Ville-Matias Heikkilä (http://viznut.fi/)
+zmodload -i zsh/mathfunc
+
+c=1
+help="Try 'palette --help' for more information.\n"
+error="palette: invalid option -- $@\n$help"
+
+image_parser() {
+#	palette=($(convert "$1" ppm:-\
+#	           | sed '1,3d'\
+#	           | hexdump -ve '3/1 "%02x" "\n"'\
+#	           | sort\
+#	           | uniq -c\
+#	           | sort -gr\
+#	           | head -$range\
+#	           | awk '{print $2}'\
+#	           | sort -k1,1 -r\
+#	           | tr -s '\n' ' '))
+#borrowed from twily's "color-gen" script
+  palette=($(convert "$1" -define histogram:unique-colors=true -colors $range -format %c histogram:info:-\
+             | sed 's/.*#//;'\
+             | cut -c -6\
+             | sort -r\
+             | tr -s '\n' ' '))
+}
+
+argc_check() {
+	if (( $# < $1 )); then
+		printf "palette: missing command line option.\n$help"
+		exit 1
+  elif (( $# > $1 )); then
+    printf "palette: too many command line options given.\n$help"
+    exit 1
+	fi
+}
+
+help_text="\
+palette - Generate a n-colour palette, given a starting seed.\n\
+\n\
+Usage: palette -h COLOURS... SEED...\n\
+       palette -t COLOURS... SEED...\n\
+       palette -p COLOURS... SEED... >> file.ppm\n\
+       palette -g COLOURS... SEED... >> file.gpl\n\
+       palette -f image -[output option] COLOURS...\n\
+\n\
+Options:\n\
+    -h     - prints a list of HTML colours\n\
+    -t     - prints the resulting colours on the terminal\n\
+             (requires a 24-bit colour capable terminal emulator)\n\
+    -p     - generates a binary PPM file output\n\
+    -g     - generates a GIMP palette file output\n\
+    -f     - generates a palette from the N most common colours on an image,\n\
+             instead of using the algorithm-based generator
+    --help - this help screen\n\n\
+    COLOURS - number of colours on the palette (>1)\n\
+    SEED    - hex seed 0x000000...0xFFFFFF\n"
+
+if (( $# < 2 )) {argc_check 2 $@}
+
+while [[ -v 1 ]]; do
+	case "$1" in
+  	"-f") argc_check 5 $@; from_file=1; shift; file="$1"; 4=0x000000;;
+  	"-h") argc_check 4 $@; style=html; shift; range=$1; shift; seed=$1;;
+    "-t") argc_check 4 $@; style=term; shift; range=$1; shift; seed=$1;;
+    "-p") argc_check 4 $@; style=file; shift; range=$1; shift; seed=$1;;
+    "-g") argc_check 4 $@; style=gimp; shift; range=$1; shift; seed=$1;;
+    "--help") argc_check 2 $@; printf $help_text; exit 0;;
+    *) printf $error; exit 1;;
+  esac
+  shift
+done
+
+if [[ -n $from_file ]]; then
+  image_parser $file
+fi
+
+square_side=$((int(ceil(sqrt($range))))) #so we can print a neat and pretty square ;)
+
+#next we print a header for PPM and GIMP palette files
+if [[ $style == "file" ]]; then
+	printf "P6\n$square_side $square_side\n255\n"
+elif [[ $style == "gimp" ]]; then
+  printf "GIMP Palette\nName: $seed-$range\nColumns: $square_side\n#\n"
+fi
+
+for ((i=1;i<=$range;i++)); do
+  if [[ -z $from_file ]]; then
+    (( palette[i] = ( i - 1 ) * seed ))
+    (( palette[i] = palette[i] & 0x00FFFFFF)) #discards upper 8 bits
+  else
+    palette[i]="0x$palette[i]"
+  fi
+
+  r=$(( (palette[i] & 0x00FF0000) >> 16 )) # gets r bits
+  g=$(( (palette[i] & 0x0000FF00) >> 8 )) # gets g bits
+  b=$((palette[i] & 0x000000FF )) # gets b bits
+
+  if [[ $style == "html" ]]; then
+    printf "#%06x\n" $palette[$i]
+  elif [[ $style == "term" ]]; then
+    printf "\e[48;2;%d;%d;%dm  \e[0m" "$r" "$g" "$b"
+    if (( c == square_side )); then
+      printf "\n"
+      c=0
+    fi
+    ((c++))
+  elif [[ $style == "file" ]]; then
+    printf '\'"$(([##8]10#$r))"'\'"$(([##8]10#$g))"'\'"$(([##8]10#$b))"
+  elif [[ $style == "gimp" ]]; then
+    printf '%03d %03d %03d' $r $g $b
+    printf "\t#$i\n"
+  fi
+done
+
+#fill the missing pixels on the square with black since we don't want missing bits, especially on the ppm file
+while (( ( $i - 1 ) < ( $square_side ** 2 ) )); do
+  if [[ $style == "term" ]]; then
+  	printf "\e[48;2;0;0;0m  \e[0m"
+  	if (( c == square_side )); then
+  	  	printf "\n"
+  		 	c=0
+ 		fi
+    ((c++))
+  elif [[ $style == "file" ]]; then
+    printf '\000\000\000'
+  fi
+  ((i++))
+done
+
+exit 0
+
+#TODO
+#add optional hex sorter on parser
+#sort -k1,1 -r
+#convert foo.ppm -compress none bar.ppm

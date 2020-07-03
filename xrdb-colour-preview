@@ -1,0 +1,99 @@
+#!/bin/zsh
+
+margin="     "
+margin_text=(DFT BLK RED GRN YEL BLU MAG CYN WHT)
+text=(black red green yellow blue magenta cyan white)
+text_width=69
+fgn=0
+
+print_bar() {
+  for ((i=0;i<69;i++)) {printf "─"}
+}
+
+print_text() {
+  printf "│"
+  printf "\e[48;2;%s;%s;%sm" "$r[bgc]" "$g[bgc]" "$b[bgc]"
+  for ((fgc=1;fgc<=8;fgc++)); do
+    case $(expr length $text[fgc]) in
+      3) padding="   ";;
+      [4-5]) padding="  ";;
+      [6-7]) padding=" ";;
+    esac
+    ((fgn++))
+    printf "\e[38;2;%s;%s;%sm" "$r[fgn]" "$g[fgn]" "$b[fgn]"
+    printf $padding$text[fgc]$padding
+  done
+  printf "\e[0m"
+  printf "\e[48;2;%s;%s;%sm" "$r[17]" "$g[17]" "$b[17]"
+  printf "\e[38;2;%s;%s;%sm" "$r[18]" "$g[18]" "$b[18]"
+  printf "│\n"
+}
+
+_previewer() {
+  colour[17]=$(printf "0x00" ;\
+               egrep "^[^!b]*background:" $file \
+               | egrep -o "[0-9A-Fa-f]{6}")
+  colour[18]=$(printf "0x00" ;\
+               egrep "^[^!f]*foreground:" $file \
+               | egrep -o "[0-9A-Fa-f]{6}")
+
+  for ((i=0;i<=15;i++)); do
+    (( index = i + 1 ))
+
+    colour[index]=$(printf "0x00"; \
+                    egrep "^[^!c]*color$i:" $file \
+                    | egrep -o "[0-9A-Fa-f]{6}")
+    r[index]=$(( (colour[index] & 0x00FF0000) >> 16 )) # gets r bits
+    g[index]=$(( (colour[index] & 0x0000FF00) >> 8 )) # gets g bits
+	  b[index]=$((  colour[index] & 0x000000FF )) # gets b bits
+
+    if (( i == 0 )) ; then
+      for index in 17 18 ; do
+        r[index]=$(( (colour[index] & 0x00FF0000) >> 16 )) # gets r bits
+        g[index]=$(( (colour[index] & 0x0000FF00) >> 8 )) # gets g bits
+        b[index]=$((  colour[index] & 0x000000FF )) # gets b bits
+      done
+    fi
+  done
+
+
+  printf "\e[48;2;%s;%s;%sm" "$r[17]" "$g[17]" "$b[17]"
+  printf "\e[38;2;%s;%s;%sm" "$r[18]" "$g[18]" "$b[18]"
+
+  printf "\n%s:\n" "$file"
+
+#top margin
+printf $margin"┌"
+print_bar
+printf "┐\n"
+
+for ((bgc=1;bgc<=9;bgc++)); do
+  printf " $margin_text[bgc] "
+  print_text
+  printf $margin
+  print_text
+  fgn=0
+  if [[ $bgc < 9 ]]; then
+    printf $margin"├"
+    print_bar
+    printf "┤\n"
+  fi
+done
+
+#bottom margin
+printf $margin"└"
+print_bar
+printf "┘\n\n"
+}
+
+(( $# < 1 )) && exit 1
+
+for file in $@ ; do
+  if [[ -a $file ]] ; then
+    _previewer
+  else
+    echo "$file not found!"
+  fi
+done
+
+exit 0

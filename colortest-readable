@@ -1,0 +1,54 @@
+#!/bin/zsh
+#by Elizabeth Bodaneze
+
+margin="     "
+margin_text=(DFT BLK RED GRN YEL BLU MAG CYN WHT)
+text=(black red green yellow blue magenta cyan white)
+fg_colour=(30m 31m 32m 33m 34m 35m 36m 37m 90m 91m 92m 93m 94m 95m 96m 97m)
+bg_colour=(49m 40m 41m 42m 43m 44m 45m 46m 47m)
+text_width=69
+fgn=0
+
+print_text() {
+printf "│"
+printf "\e[$bg_colour[$b]"
+for ((f=1;f<=8;f++)); do
+  case $(expr length $text[$f]) in
+    3) padding="   ";;
+    [4-5]) padding="  ";;
+    [6-7]) padding=" ";;
+  esac
+  ((fgn++))
+  printf "\e[$fg_colour[$fgn]"
+  printf $padding$text[$f]$padding
+done
+printf "\e[0m"
+printf "│\n"
+}
+
+print_bar() {
+for ((i=0;i<text_width;i++)) {printf "─"}
+}
+
+#top margin
+printf $margin"┌"
+print_bar
+printf "┐\n"
+
+for ((b=1;b<=9;b++)); do
+  printf " $margin_text[$b] "
+  print_text
+  printf $margin
+  print_text
+  fgn=0
+  if [[ $b < 9 ]]; then
+    printf $margin"├"
+    print_bar
+    printf "┤\n"
+  fi
+done
+
+#bottom margin
+printf $margin"└"
+print_bar
+printf "┘\n\n"

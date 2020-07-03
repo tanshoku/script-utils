@@ -1,0 +1,17 @@
+#!/bin/bash
+#HL2 hopper mine noises
+#Elizabeth Bodaneze 2017
+
+if [ "$1" == "t" ]; then
+	beep -f 10000 -l 10 -D 40 -n -f 10000 -l 10 -D 45 -n -f 7000 -l 20 -D 3 -n -f 7000 -l 20 -D 50 -n -f 7000 -l 20 -D 500 -n -f7500 -l 20 -D 3 -n -f 7500 -l 20 -D 40 -n -f 7200 -l 20 -D 3 -n -f 7200 -l 20 -D 520 -n -f 12000 -l 30 -D 3 -n -f 6800 -l 20 -D 3 -n -f 6800 -l 20 -D 220 -n -f 10000 -l 10 -D 40 -n -f 10000 -l 10 -D 40 -n -f 10000 -l 10;
+
+elif [ "$1" == "n" ]; then
+	for ((i=1;i<=$2;i++)); do beep -f 10000 -l 10 -D 40 -n -f 10000 -l 10 -D 45 -n -f 7000 -l 20 -D 3 -n -f 7000 -l 20 -D 50 -n -f 7000 -l 20 -D 1500; done;
+
+elif [[ "$1" != "n" || "$1" != "t" ]]; then
+	echo "error";
+	exit 1
+# else ; echo "$2"
+fi
+
+exit 0;

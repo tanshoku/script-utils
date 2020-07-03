@@ -1,0 +1,17 @@
+#!/bin/bash
+
+perm() {
+  local items="$1"
+  local out="$2"
+  local i
+  [[ "$items" == "" ]] && echo "$out" && return
+  for (( i=0; i<${#items}; i++ )) ; do
+    perm "${items:0:i}${items:i+1}" "$out${items:i:1}"
+  done
+  }
+
+if [[ -z $1  ]]; then
+  while read line ; do perm $line ; done < /dev/stdin
+else
+  echo "$@" | while read line ; do perm $line ; done
+fi

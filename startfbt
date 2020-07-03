@@ -1,0 +1,116 @@
+#!/bin/zsh
+# Startfbt: a wrapper script for a fancy background image with fbterm, plus colour themes
+# Usage:    startfbt [main /path/to/image|coloursetup]
+# Author:   Elizabeth Bodaneze
+
+main() {
+local fb_resolution=$(cat /sys/class/graphics/fb0/virtual_size | sed 's/,/x/')
+local terminal_transparency=70%
+
+coloursetup
+echo -ne "\e[?25l" # hide cursor
+dd if=/dev/zero of=/dev/fb0 &> /dev/null
+
+convert $1 \
+\( -clone 0 -blur 0x5 -resize $fb_resolution\! -fill "$bg_colour" -colorize $terminal_transparency \) \
+\( -clone 0 -resize $fb_resolution -fill "$bg_colour" -colorize $terminal_transparency \) \
+-delete 0 -gravity center -composite \
+bgra:/dev/fb0
+
+shift
+export FBTERM_BACKGROUND_IMAGE=1
+
+if [[ "$TERM" = "linux" ]]; then
+  FBTERM=1 exec fbterm
+fi
+}
+
+coloursetup() {
+#available themes: seashells, pastel, nord, blue16
+local theme=seashells
+
+# hack for 256 color depth with fbterm
+  echo -en "\e[3;0;255;255;255}"
+  echo -en "\e[3;1;128;128;128}"
+
+  if [ "$theme" = "seashells" ]; then
+    bg_colour="#09141b"
+    echo -en "\e]P017384c" #black
+    echo -en "\e]P8434b53" #darkgrey
+    echo -en "\e]P1d15123" #darkred
+    echo -en "\e]P9d48678" #red
+    echo -en "\e]P2027c9b" #darkgreen
+    echo -en "\e]PA628d98" #green
+    echo -en "\e]P3fca02f" #brown
+    echo -en "\e]PBfdd39f" #yellow
+    echo -en "\e]P41e4950" #darkblue
+    echo -en "\e]PC1bbcdd" #blue
+    echo -en "\e]P568d4f1" #darkmagenta
+    echo -en "\e]PDbbe3ee" #magenta
+    echo -en "\e]P650a3b5" #darkcyan
+    echo -en "\e]PE87acb4" #cyan
+    echo -en "\e]P7deb88d" #lightgrey
+    echo -en "\e]PFfee4ce" #white
+  elif [ "$theme" = "pastel" ]; then
+    bg_colour="#2c2c2c"
+    echo -en "\e]P03f3f3f" #black
+    echo -en "\e]P8709080" #darkgrey
+    echo -en "\e]P1705050" #darkred
+    echo -en "\e]P9dca3a3" #red
+    echo -en "\e]P260b48a" #darkgreen
+    echo -en "\e]PA72d5a3" #green
+    echo -en "\e]P3dfaf8f" #brown
+    echo -en "\e]PBf0dfaf" #yellow
+    echo -en "\e]P49ab8d7" #darkblue
+    echo -en "\e]PC64bff3" #blue
+    echo -en "\e]P5dc8cc3" #darkmagenta
+    echo -en "\e]PDec93d3" #magenta
+    echo -en "\e]P68cd0d3" #darkcyan
+    echo -en "\e]PE93e0e3" #cyan
+    echo -en "\e]P7dcdcdc" #lightgrey
+    echo -en "\e]PFffffff" #white
+  elif [ "$theme" = "nord" ]; then
+    bg_colour="#2E3440"
+    echo -en "\e]P03B4252"
+    echo -en "\e]P1A34E72"
+    echo -en "\e]P272A17E"
+    echo -en "\e]P3BDCF76"
+    echo -en "\e]P47287A6"
+    echo -en "\e]P58D7296"
+    echo -en "\e]P688C0D0"
+    echo -en "\e]P7E5E9F0"
+    echo -en "\e]P84C566A"
+    echo -en "\e]P9BF616A"
+    echo -en "\e]PAA3BE8C"
+    echo -en "\e]PBEBCB8B"
+    echo -en "\e]PC81A1C1"
+    echo -en "\e]PDB48EAD"
+    echo -en "\e]PE8FBCBB"
+    echo -en "\e]PFECEFF4"
+  elif [ "$theme" = "blue16" ]; then
+    bg_colour="#2e3440"
+    echo -en "\e]P03a4251"
+    echo -en "\e]P1506ea5"
+    echo -en "\e]P28090af"
+    echo -en "\e]P3a3c2fc"
+    echo -en "\e]P47486a8"
+    echo -en "\e]P5737f97"
+    echo -en "\e]P69ab3e2"
+    echo -en "\e]P7a0b0cd"
+    echo -en "\e]P84c566a"
+    echo -en "\e]P96081be"
+    echo -en "\e]PAa0b2d2"
+    echo -en "\e]PBb6d0ff"
+    echo -en "\e]PC869dc6"
+    echo -en "\e]PD919eb7"
+    echo -en "\e]PEa0b0cd"
+    echo -en "\e]PFeceff4"
+  fi
+}
+
+if [[ "$1" = "main" ]]; then
+  shift
+  main $1
+elif [[ "$1" = "coloursetup" ]]; then
+  coloursetup
+fi

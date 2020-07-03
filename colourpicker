@@ -1,0 +1,12 @@
+#!/bin/zsh
+# Author:       Elizabeth         2019
+# Description:  Terminal colour picker
+
+colour=$(grabc 2>&1)
+escaped=$(printf $colour | sed '1d;s/,/;/g')
+printf "\e[48;2;%sm  \e[0m " "$escaped"
+printf "%s\n" "$colour"
+printf "%s" "$colour" \
+ | sed '2d' \
+ | tr -d '\n' \
+ | xclip -selection clipboard

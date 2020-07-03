@@ -1,0 +1,7 @@
+#!/bin/zsh
+#join a bunch of pictures as pages on a pdf file
+# Elizabeth Bodaneze 2018
+
+convert -loop 0 -delay 100 $@ temp.mng
+convert temp.mng $(date +%y%m%d).pdf
+rm temp.mng

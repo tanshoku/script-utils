@@ -1,0 +1,13 @@
+#!/bin/zsh
+# Author:      Elizbeth Bodaneze         2019
+# Description: Wallpaper cycler with nitrogen
+# Requires:    zsh, grep, nitrogen
+# Usage:       wallpaper_cycler
+
+wallpaper_list="$HOME/.config/wallpaper_list"
+current_wallpaper="$(grep file ~/.config/nitrogen/bg-saved.cfg | cut -d'=' -f2)"
+next_wallpaper="$(grep -A1 $current_wallpaper $wallpaper_list | tail -1)"
+
+[[ $next_wallpaper == $current_wallpaper ]] && next_wallpaper=$(sed 1q $wallpaper_list)
+
+nitrogen --save --set-zoom-fill $next_wallpaper

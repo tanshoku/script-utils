@@ -1,0 +1,9 @@
+#!/bin/bash
+#phone call and message noises
+#Elizabeth Bodaneze
+
+if [ "$1" == "call" ]; then
+	for i in {1..10}; do beep -f 500 -l 50 -d 5 -r 10 -n -f 1 -l 10 -D 50 -n -f 500 -l 50 -d 5 -r 10 && sleep 2; done
+else
+	beep -f 500 -l 50 -n -f 1000 -l 50
+fi
