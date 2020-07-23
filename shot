@@ -1,0 +1,90 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze                          2020
+# Description:  Another one of those pesky screenshooter scripts
+# Requires:     beep, scrot, maim, imagemagick, xclip, zsh
+# References:   twily's scrotw for the drop shadow thingy
+#
+
+file=/tmp/$(date +"%Y%m%d-%H%M%S").png
+
+help_text="\
+shot - take screenshots and copy them to the X11 clipboard.\n\
+\n\
+Options:\n\
+    -s     - Select an area with the mouse;\n\
+    -w     - Select a window with a mouse click;\n\
+    -f     - Takes a screenshot of the whole screen;\n\
+    -S     - Adds a drop shadow to window screenshots;\n\
+    -c     - Copies the screenshot to the clipboard;\n\
+    -k     - When used in conjuction with -c,
+             keeps the resulting file, instead of deleting it;\n\
+    -F     - Saves to a file that's not ${file};\n\
+    -d     - Adds a delay before the screenshot. Supports fractions of seconds;\n\
+    -h     - This help screen\n\n"
+
+error="\
+shot - missing parameter or argument!\n\
+use shot -h for usage info."
+
+[[ -z $1 ]] && fullscreen=1
+
+while getopts ":swSfckhF:d:" opt; do
+  case $opt in
+    s)  selection=1  ;;
+    w)  window=1     ;;
+    f)  fullscreen=1 ;;
+    S)  shadow=1     ;;
+    c)  clipboard=1  ;;
+    k)  keep=1       ;;
+    F)  file=$OPTARG 
+        [[ -z $file ]] && echo -n $error  && exit 1 ;;
+    d)  delay=$OPTARG
+        [[ -z $delay ]] && echo -n $error && exit 1 ;;
+    h)  echo -n $help_text                 ; exit 0 ;;
+    \?) echo -n $help_text                 ; exit 1 ;;
+  esac
+done
+
+((delay)) && sleep ${delay}
+
+if ((selection)) ; then
+  maim -n 0 -g $(slop) -qud 0.3 --format=png > ${file} || exit 1
+elif ((window)) ; then
+  #TODO: i still haven't found an elegant way of grabbing window borders with maim.
+  #perhaps using a hack with `xwd -frame | xwdtopnm | head -2` can do something,
+  #but we'll just keep using scrot for now since it does this better.
+  #maim -un 0 -i $(xdotool getactivewindow) --format=png > ${file} || exit 1
+  #maim -ug $(slop -t 9999999) -n 0 --format=png > ${file} || exit 1
+  scrot -bud1 ${file}
+  if ((shadow)) ; then
+    mogrify ${file} \
+    \( +clone -background "rgba(6,6,6,1)" -shadow 75x7+0+0 \) \
+    +swap -background "rgba(0,0,0,0)" -layers merge +repage &>/dev/null
+  fi
+elif ((fullscreen)) ; then
+  maim > ${file} || exit 1
+fi
+
+if ((clipboard)) ; then
+  < ${file} xclip -selection clipboard -t image/png
+  ! ((keep)) && rm ${file}
+fi
+
+beep -f 10000 -l 10 -D 40  \
+  -n -f 10000 -l 10 -D 45  \
+  -n -f 7000  -l 20 -D 3   \
+  -n -f 7000  -l 20 -D 50  \
+  -n -f 7000  -l 20 -D 500 \
+  -n -f 7500  -l 20 -D 3   \
+  -n -f 7500  -l 20 -D 40  \
+  -n -f 7200  -l 20 -D 3   \
+  -n -f 7200  -l 20 -D 520 \
+  -n -f 12000 -l 30 -D 3   \
+  -n -f 6800  -l 20 -D 3   \
+  -n -f 6800  -l 20 -D 220 \
+  -n -f 10000 -l 10 -D 40  \
+  -n -f 10000 -l 10 -D 40  \
+  -n -f 10000 -l 10
+
+exit 0

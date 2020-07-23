@@ -81,7 +81,7 @@ The second purpose this program is to create a proof of concept of how such proc
 
 ### get-here
 
-Downloads something from an url that's on the clipboard to the current directory, using wget. Inteded to be used with Thunar.
+Downloads something from an url that's on the clipboard to the current directory, using wget. Inteded to be used with file managers such as Thunar.
 
 
 ### hiragana2katakana
@@ -132,6 +132,13 @@ Wrapper for scanimage. Use `scan -?` for usage info. Please notice you might nee
 ### sd_sleep
 
 A small daemon to make one or more drives sleep using hdparm, since `hdparm -s` doesn't always work. Requires zsh, hdparm, dstat and proc. Configuration is inside the script itself, there are two arrays, interval and disks; the position of the elements on the interval arrays are the amount of seconds until the drive on the same position on the disks array is put to sleep if no activity has happened.
+
+
+### shot
+
+Wrapper script for `maim` and `scrot` that allows you to copy the resulting screenshot to the clipboard, save it and so on. Use `shot -h` for usage info.
+
+I'm currently looking for a way to make it only use either `maim` or `scrot` to avoid unneeded dependencies, but `scrot` sucks at selections and leaves garbage on the screen when you're not using a compositor, when you call it from scripts with a keyboard shortcut it dies because it captures the keypresses you used to call the script, and when it works, it doesn't show the selection crosshair, which is confusing because you can't know the screenshooter is running; on the other hand, `maim` can't capture window borders without some cumbersome hacks that break it on different WMs or themes.
 
 
 ### startfbt
