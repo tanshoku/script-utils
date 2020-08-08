@@ -1,7 +1,7 @@
 #!/bin/zsh
 #
 # Author:       Elizabeth Bodaneze                                   2018-2020
-# Description:  Automatucally close MPD after it's been stopped for a set time
+# Description:  Automatically close MPD after it's been stopped for a set time
 # Requires:     zsh, mpd, mpc, netcat
 # Optional:     ncmpcpp, WMmp, polybar, mpdcron
 
