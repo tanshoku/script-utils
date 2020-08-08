@@ -1,0 +1,55 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze                                   2018-2020
+# Description:  Automatucally close MPD after it's been stopped for a set time
+# Requires:     zsh, mpd, mpc, netcat
+# Optional:     ncmpcpp, WMmp, polybar, mpdcron
+
+client='ncmpcpp'
+
+[[ -a /tmp/mpd_nodaemon.lock ]] && exit
+touch /tmp/mpd_nodaemon.lock
+
+ps -C mpd > /dev/null || mpd
+ps -C mpdcron > /dev/null || mpdcron
+if pc -C wmaker > /dev/null ; then
+  ps -C WMmp > /dev/null || WMmp -lc "#4DB6AC" &
+fi
+
+pb_test() {
+  ps xauwww | grep -i "[${1[1]}]${1[2,-1]}" && return 1 
+  return 0
+}
+
+respawn_polybar() {
+  sleep 0.2
+  if pb_test "polybar main" ; then
+    polybar main 2> /dev/null &
+    sleep 0.5
+    bspc config top_padding 14
+  fi
+}
+
+watcher() {
+  while mpc idle player > /dev/null ; do
+    state=$(echo status | netcat -w 1 127.0.0.1 6600 | grep state | cut -d' ' -f2)
+    if [[ $state == stop ]] ; then
+      for sleep in 60 120 180 300 ; do
+        sleep $sleep
+        state=$(echo status | netcat -w 1 127.0.0.1 6600 | grep state | cut -d' ' -f2)
+        [[ $state != stop ]] && break
+        [[ $state == stop && $sleep == 300 ]] && if ! ps -C $client > /dev/null ; then
+          rm /tmp/mpd_nodaemon.lock
+          mpd --kill
+          killall mpdcron
+          rm /home/liz/.mpdcron/mpdcron.pid
+          killall WMmp
+        fi
+      done
+    fi
+  done
+}
+
+watcher
+
+#respawn_polybar

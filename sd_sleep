@@ -6,8 +6,8 @@
 # Usage:        sudo sd_sleep
 
 #config
-interval=(60 600)
-disks=(sda sdb)
+interval=(60 60 600)
+disks=(sda sdb sdc)
 #the position of the values on the interval array correspod to
 #the position of the values on the disks array =)
 

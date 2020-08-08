@@ -1,0 +1,4 @@
+#!/bin/sh
+
+mpd_nodaemon &
+xfce4-terminal -I cantata --disable-server --hide-menubar --hide-scrollbar --title ncmpcpp --command "ncmpcpp" &

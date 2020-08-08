@@ -104,6 +104,11 @@ PDF maker. Usage is `mkpdf page1.png page2.png pageN.png`. Output is YYMMDD.pdf.
 Beep morse code messages through the internal speaker. Usage is `morsebeep "your message here"`. Requires bsdgames/morse and beep.
 
 
+### mpd_nodaemon & ncmpcpp_start
+
+Run Music Player Daemon without being a daemon 24/7. This program achieves this by spawning MPD and related programs, then closing them after nothing has been played for a set amount of time (default 10 minutes), and secured that your preffered MPD client is closed. It also optionally respawns polybar, which tends to die if you have the MPD widget on it and you kill the MPD process. You can use the script ncmpcpp_start to see how you can start this daemon alongside your preffered MPD client. 
+
+
 ### noises
 
 Telephone call and message noises. Originally intended to be used with IM clients such as the old Skype for GNU/Linux.

@@ -8,14 +8,15 @@
 #term_command=urxvt
 #key=-e
 
-term_command=xfce4-terminal
+term_command=xfce4-terminal 
+key2=--geometry=199x75
 key=-x
 
 if sessions=$(tmux ls) ; then
   session=$(echo $sessions | head -c 1)
-  $term_command $key tmux attach -c $session &
+  $term_command $key2 $key tmux attach -c $session &
 else
-  $term_command $key tmux &
+  $term_command $key2 $key tmux &
 fi
 
 exit 0
