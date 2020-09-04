@@ -11,3 +11,4 @@ next_wallpaper="$(grep -A1 $current_wallpaper $wallpaper_list | tail -1)"
 [[ $next_wallpaper == $current_wallpaper ]] && next_wallpaper=$(sed 1q $wallpaper_list)
 
 nitrogen --save --set-tiled $next_wallpaper
+ps -C wmaker > /dev/null && wmsetbg -u -t $next_wallpaper

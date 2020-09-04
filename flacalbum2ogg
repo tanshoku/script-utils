@@ -1,0 +1,18 @@
+#!/bin/zsh
+
+album=$(find . -iname "*.flac")
+cue=$(find . -iname "*.cue")
+
+if [[ -n $album && -n $cue ]] ; then
+  mp3splt -a -c ${cue} ${album}
+
+  rm -v $album
+  
+  for track in *.flac ; do
+    ffmpeg -i $track -c:a libvorbis -q:a 6 -vn ${track/flac/ogg} \
+      && rm -v $track
+  done
+
+  rm -v *.cue
+  [[ -a *.log ]] && rm -v *.log
+fi

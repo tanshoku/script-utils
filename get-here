@@ -1,5 +1,6 @@
 #!/bin/zsh
 
-cd $1
+[[ -n $1 ]] && cd $1
 url=$(xclip -o -selection clipboard)
+
 wget $url

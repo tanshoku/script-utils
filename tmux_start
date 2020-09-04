@@ -1,22 +1,20 @@
-#!/bin/sh
+#!/bin/zsh
 #
 # Author:       Elizabeth Bodaneze 2018
 # Description:  Start a tmux or attach to session 0 if it exists
 # Requires:     tmux
 # Usage:        tmux_start
 
-#term_command=urxvt
-#key=-e
+term_command=urxvt
+keys=(+sb -name tmux -geometry 201x75 -e)
 
-term_command=xfce4-terminal 
-key2=--geometry=199x75
-key=-x
+#term_command=xfce4-terminal 
+#keys=(--geometry=201x75 -x)
 
 if sessions=$(tmux ls) ; then
-  session=$(echo $sessions | head -c 1)
-  $term_command $key2 $key tmux attach -c $session &
+  $term_command $keys tmux attach -c ${sessions:0:1} &
 else
-  $term_command $key2 $key tmux &
+  $term_command $keys tmux &
 fi
 
 exit 0

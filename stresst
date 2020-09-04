@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# Author:       Elizabeth Bodaneze 2020
+# Description:  Stress tester
+# Usage:        stresst [delay]
+
+delay=60 #default delay
+mult=2   #number or md5sum instances to spawn per processor thread
+
+restore (){
+  tput rmcup
+  tput cnorm
+  kill $procs
+  exit 0
+}
+trap restore INT
+
+[[ -n $1 ]] && delay=$1
+
+#get number of processor threads
+nprocs=$(grep -c "^processor" /proc/cpuinfo)
+
+((ninst = nprocs * mult))
+
+for ((i=0; i<ninst; i++)) ; do 
+  md5sum /dev/random &
+  procs+="$! "
+done
+
+tput civis
+tput smcup
+
+for ((i=0;i<delay;i++)) ; do
+  tput cup 0 0
+  printf "%s/%ss\n\n" $i $delay
+  sensors
+  printf "load avg %s\n\n" "$(</proc/loadavg)"
+  ps -o pid,rss,pcpu,time,command -p ${procs/ /,}
+  sleep 1
+done
+
+kill $procs
+
+echo
+read -n1 -r -p "Done, press any key to quit."
+
+tput rmcup
+tput cnorm
+
+exit 0

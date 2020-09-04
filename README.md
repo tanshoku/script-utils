@@ -79,9 +79,14 @@ The purpose of this program is to find duplicate images along large collections 
 The second purpose this program is to create a proof of concept of how such processes, such as reverse image search, can be achieved through well-crafted algortihms, instead of the regular and costly solutions of AI and machine learning.
 
 
+### flac2ogg, flacalbum2ogg, mp32ogg
+
+Useful scripts to convert music in flac and mp3 to ogg using `ffmpeg`. `flacalbum2ogg` also requires `mp3splt`.
+
+
 ### get-here
 
-Downloads something from an url that's on the clipboard to the current directory, using wget. Inteded to be used with file managers such as Thunar.
+Downloads something from an url that's on the clipboard to the current directory, using wget. Inteded to be used with file managers such as Thunar or from the terminal.
 
 
 ### hiragana2katakana
@@ -92,6 +97,16 @@ Translate hiragana characters to their katakana counterparts. Usage is `hiragana
 ### hopper
 
 Half-Life 2 hopper mine noises. `hopper t` places a mine, `hopper n 10` activates the proximity beep and beeps 10 times.
+
+
+### i3lock-color
+
+Wrapper script for [i3lock-color](https://github.com/Raymo111/i3lock-color) and [corrupter](https://github.com/r00tman/corrupter). Automagically grabs colours from X resources, so it matches your terminal theme and so on. Also requires `scrot` and `imagemagick`.
+
+
+### magic_suspend
+
+Locks the screen and suspends after N seconds, and sends a notification of how much time is left. Can also be interrupted by calling the same script again. Usage is `magic_suspend [seconds]`. Obviously requires something to lock the screen, like i3lock or xscreensaver. Intended to be called from a keyboard shortcut from a window manager.
 
 
 ### mkpdf
@@ -173,6 +188,16 @@ fi
 A simple stopwatch for your terminal.
 
 
+### stresst
+
+Simple CPU stress tester based on running many md5sum instances in parallel. Uses bash so it's more portable.
+
+
+### sync-nitrogen-wmaker
+
+Synchronize wallpapers set with nitrogen to the Window Maker settings.
+
+
 ### tmux_start
 
 Connect to an existing tmux session or creates a new one if there are none, using your preffered terminal emulator. Intended to be called from a keyboard shortcut inside a window manager.
@@ -183,23 +208,35 @@ Connect to an existing tmux session or creates a new one if there are none, usin
 Toggle presentation mode on Xfce4 with xfce4-power-manager running and shows a notification. Intended to be called from a keyboard shortcut.
 
 
+### volume-set
+
+Set main pulseaudio volume. Usage is `volume-set [+|-][percentage]%`
+
+
 ### wallpaper_cycler
 
 Cycle wallpapers from a list on `~/.config/wallpaper_list`, which is a list of paths to files separated by new lines, e.g:
 
 ```
-/home/liz/Pictures/anime/877548.png
-/home/liz/Pictures/anime/836310.jpg
-/home/liz/Pictures/anime/65546468_p0.jpg
-/home/liz/Pictures/anime/65617348_p0.jpg
-/home/liz/Pictures/anime/65665746_p0.jpg
-/home/liz/Pictures/anime/65752188_p0.jpg
-/home/liz/Pictures/anime/65818649_p0.jpg
-/home/liz/Pictures/anime/66305991_p0.jpg
-/home/liz/Pictures/anime/65996578_p0.jpg
+/home/liz/Pictures/squidfingers/pattern_001.gif
+/home/liz/Pictures/squidfingers/pattern_002.gif
+/home/liz/Pictures/squidfingers/pattern_003.gif
+/home/liz/Pictures/squidfingers/pattern_004.gif
+/home/liz/Pictures/squidfingers/pattern_005.gif
+/home/liz/Pictures/squidfingers/pattern_006.gif
+/home/liz/Pictures/squidfingers/pattern_007.gif
+/home/liz/Pictures/squidfingers/pattern_008.gif
+/home/liz/Pictures/squidfingers/pattern_009.gif
+/home/liz/Pictures/squidfingers/pattern_010.gif
+... etc
 ```
 
 This is intended to be called from crontab, during X login, or from a keyboard shortcut. Requires zsh, grep and nitrogen.
+
+
+### wallchange
+
+Similar to `wallpaper_cycler`, but just sets a random wallpaper with hsetroot.
 
 
 ### window_center

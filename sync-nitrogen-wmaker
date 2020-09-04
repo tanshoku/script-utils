@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+current_bg=$(grep file .config/nitrogen/bg-saved.cfg | cut -d'=' -f2)
+
+wmsetbg -u -t ${current_bg}
+#sed -E '/WorkspaceBack/s|tpixmap, "[^"]*",|tpixmap, "'${current_bg}'",|'\
+#    -i  GNUstep/Defaults/WindowMaker

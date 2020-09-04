@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+hsetroot -tile $(find ~/Pictures/squidfingers | shuf -n1)

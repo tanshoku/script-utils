@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+find . -name "*.mp3" -exec \
+  ffmpeg  -i {} -c:a libvorbis -q:a 6 -vn {}.ogg \;
+  
+find . -name "*.mp3.ogg" -exec bash -c 'mv "$1" "${1%.mp3.ogg}".ogg' - '{}' \;
+
+find . -name "*.mp3" -delete

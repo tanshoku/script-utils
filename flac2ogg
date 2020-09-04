@@ -1,0 +1,11 @@
+#!/bin/zsh
+
+for track in *.flac ; do
+  ffmpeg -i $track -c:a libvorbis -q:a 6 -vn ${track/flac/ogg} \
+    && rm -v $track
+done
+
+[[ -a *.cue ]] && rm -v *.cue
+[[ -a *.log ]] && rm -v *.log
+
+exit 0

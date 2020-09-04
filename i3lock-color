@@ -1,0 +1,142 @@
+#!/bin/zsh
+# i3lock-color script by Elizabeth Bodaneze
+# Dec 2018
+
+# set mode as "scrot" for a screenshot or "bg" for
+# the desktop background as set by nitrogen
+mode=scrot
+
+# optional padlock icon
+#LOCK_ICON=~/.icons/lock.png
+
+
+# remove our image from /tmp after 2 seconds
+_rmimg() {
+  sleep 2
+  rm "$IMAGE"
+  [[ -a $LOCK_ICON ]] && rm /tmp/padlock.png
+}
+
+
+# define stuff based on xresources so we don't have to bother when changing themes =)
+#
+_XRESOURCES_ALL=$(xrdb -query)
+color0=$(echo $_XRESOURCES_ALL | grep '*.color0:' | cut -d '#' -f2)
+color1=$(echo $_XRESOURCES_ALL | grep '*.color1:' | cut -d '#' -f2)
+color2=$(echo $_XRESOURCES_ALL | grep '*.color2:' | cut -d '#' -f2)
+color3=$(echo $_XRESOURCES_ALL | grep '*.color3:' | cut -d '#' -f2)
+color5=$(echo $_XRESOURCES_ALL | grep '*.color5:' | cut -d '#' -f2)
+colorf=$(echo $_XRESOURCES_ALL | grep '*.color15' | cut -d '#' -f2)
+
+B="#${color0}ff"  # ring center
+C="#${color1}ff"  # verifying center
+D="#${color2}ff"  # default
+T="#${colorf}ff"  # text
+W="#${color1}ff"  # wrong
+P="#${color5}ff"  # typing
+V="#${color3}ff"  # verifying
+
+
+# the built-in blur function from i3lock-color doesn't darken the image;
+# the one from i3lock-fancy looks prettier
+#
+IMAGE="$(mktemp --suffix=.png)"
+EFFECT=(-filter Gaussian -resize 20% -define filter:sigma=1.5 -resize 500.5%)
+HUE=(-level 0%,100%,0.6)
+
+
+if [[ "$mode" == "bg" ]] ; then
+  screen_resolution=$(xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/')
+  
+  cp $(grep file ~/.config/nitrogen/bg-saved.cfg | cut -d'=' -f2) "$IMAGE"
+  
+  convert "$IMAGE" \
+  \( -clone 0 -blur 0x5 -resize $screen_resolution\! \) \
+  \( -clone 0 -resize $screen_resolution \) -delete 0 -gravity center -composite \
+  "${HUE[@]}" "$IMAGE"
+elif [[ "$mode" == "scrot" ]]; then
+  scrot -z "$IMAGE"
+  # if we're using a temp image name, scrot puts _000 at the end of the 
+  # filename for whatever the hell of a reason..?
+  mv "${IMAGE/.png/_000.png}" "$IMAGE"
+
+  if which corrupter > /dev/null ; then
+    corrupter -stride 0.01 -mag 0.1 "$IMAGE" "$IMAGE"
+  else
+    mogrify "${HUE[@]}" "${EFFECT[@]}" "$IMAGE"
+  fi
+fi
+
+
+# add our padlock icon for prettyness
+if [[ -a $LOCK_ICON ]] ; then
+  cp "$LOCK_ICON" /tmp/padlock.png
+
+  convert "$IMAGE" /tmp/padlock.png \
+          -geometry +49+975 -composite "${IMAGE}.2"
+
+  mv "${IMAGE}.2" "$IMAGE"
+fi
+
+
+#hacky way to clean the image from /tmp, since we're in no-fork mode
+_rmimg&
+
+
+# Suspend dunst and lock, then resume dunst when unlocked.
+pkill -u $USER -USR1 dunst
+
+i3lock \
+-n                         \
+--insidevercolor=$C        \
+--ringvercolor=$V          \
+\
+--insidewrongcolor=$C      \
+--ringwrongcolor=$W        \
+\
+--insidecolor=$B           \
+--ringcolor=$D             \
+--linecolor=#00000000      \
+--separatorcolor=$D        \
+\
+--verifcolor=$T            \
+--wrongcolor=$T            \
+--layoutcolor=$T           \
+--keyhlcolor=$P            \
+--bshlcolor=$W             \
+--greetercolor=$T          \
+\
+--line-uses-inside         \
+--veriftext=""             \
+--wrongtext=""             \
+--ring-width=7             \
+-i "$IMAGE"                \
+--indpos="x+57:y+983"      \
+--radius=10                \
+\
+--clock                    \
+--timestr="%R"             \
+--timecolor=$T             \
+--timesize=72              \
+--timepos="640:512"       \
+--datestr=" %a, %d/%m/%Y"  \
+--datesize=20              \
+--datecolor=$T             \
+--noinputtext=""           \
+--greetersize=18           \
+--greetertext="Locked"     \
+--greeterpos="x+120:y+989" \
+--pass-media-keys
+#--indicator
+
+#--timepos="640:512"   \
+#--indicator          \
+#--radius=15          \
+#--modsize=20         \
+#--time-font=fixed    \
+#--date-font=fixed    \
+#--textsize=20
+#--keylayout 1         \
+# etc
+
+pkill -u $USER -USR2 dunst
