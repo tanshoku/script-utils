@@ -4,6 +4,8 @@
 # Requires:    zsh, grep, nitrogen
 # Usage:       wallpaper_cycler
 
+export DISPLAY=:0
+
 wallpaper_list="$HOME/.config/wallpaper_list"
 current_wallpaper="$(grep file ~/.config/nitrogen/bg-saved.cfg | cut -d'=' -f2)"
 next_wallpaper="$(grep -A1 $current_wallpaper $wallpaper_list | tail -1)"

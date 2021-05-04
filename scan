@@ -6,18 +6,20 @@
 #
 
 ## defaults
+device="epsonscan2:ut:esci2:usb:ES010C:316"
+gamma="2.0"
 prefix="sketch"
 ext="jpg"
 quality=96
 tot_pages=1
-mode="Gray"
-bri_con="20x29"
+mode="Grayscale"
+bri_con="10x8"
 rotation=0
 dpi="200dpi"
 l_m="0.2mm"
 t_m="0.2mm"
 x_m="208mm"
-y_m="294.8mm"
+y_m="294.0mm"
 scale="100%"
 
 
@@ -35,7 +37,7 @@ Options:\n\
   -D      scan at high resolution then downscale\n\
   -L      rotate the image 270 degrees clockwise\n\
   -n      do not prepend the filename with '${prefix}'\n\
-  -b      do not adjust brightness and contrast\n\
+  -b      do not adjust gamma\n\
   -C      do not crop the page\n\
   -x str  file output extension\n\
   -s int  scale image to int%\n\
@@ -50,13 +52,13 @@ Default options are: scan -${${mode:l}:0:1}a${tot_pages} -x ${ext}\
 while getopts ":a:gcHDLnbCx:s:q:d:h" opt; do
   case "$opt" in
     "a") tot_pages=$OPTARG                                                ;;
-    "g") mode="Gray"           ; m_key+="\e[0mg"                          ;;
+    "g") mode="Grayscale"      ; m_key+="\e[0mg"                          ;;
     "c") mode="Color"          ; m_key+="\e[94;1mc"                       ;;
     "H") dpi="600dpi"          ; m_key+="\e[97mH"                         ;;
     "D") dpi="600dpi"          ; m_key+="\e[96mD\e[0m" ; scale="33.3333%" ;;
     "L") rotation=270          ; m_key+="\e[32mL\e[0m"                    ;;
     "n") prefix=""             ; m_key+="\e[90mn\e[0m"                    ;;
-    "b") bri_con="0x0"         ; m_key+="\e[95mb"                         ;; 
+    "b") gamma="2.2"           ; m_key+="\e[95mb"                         ;; 
     "C") l_m="0mm" ; t_m="0mm" ; x_m="215.9mm"         ; y_m="296.926mm"  ;;
     "x") ext=$OPTARG                                                      ;;
     "s") scale="${OPTARG}%"                                               ;;
@@ -98,22 +100,22 @@ for ((i=first;i<=last;i++)); do
   printf "\rProgress: 0.0%%   -  Scanning page %s/%s (%s%s)...\t[%s]\r" \
           "${page}" "${tot_pages}" "${file}" "${warn}" "${m_key}"
 
-  scanimage -p                   \
-            --mode $mode         \
-            --resolution $dpi    \
-            --format=tiff        \
-            --compression=None   \
-            -l $l_m              \
-            -t $t_m              \
-            -x $x_m              \
-            -y $y_m              \
-  | convert -scale $scale        \
-            -quality $quality    \
-            -rotate $rotation    \
-            -brightness-contrast \
-            -$bri_con            \
-            tiff:-               \
-            $file                \
+  scanimage -p                        \
+            --gamma-correction $gamma \
+            --mode $mode              \
+            --resolution $dpi         \
+            --format=tiff             \
+            -l $l_m                   \
+            -t $t_m                   \
+            -x $x_m                   \
+            -y $y_m                   \
+  | convert -scale $scale             \
+            -quality $quality         \
+            -rotate $rotation         \
+            -brightness-contrast      \
+            -$bri_con                 \
+            tiff:-                    \
+            $file                     \
   || exit $?
 
   if (( page != tot_pages )); then

@@ -1,8 +1,14 @@
 #!/bin/zsh
 
-find . -name "*.mp3" -exec \
-  ffmpeg  -i {} -c:a libvorbis -q:a 6 -vn {}.ogg \;
-  
-find . -name "*.mp3.ogg" -exec bash -c 'mv "$1" "${1%.mp3.ogg}".ogg' - '{}' \;
+call=${0##*/}
 
-find . -name "*.mp3" -delete
+case $call in
+  'mp32ogg')  __EXT=mp3  ;;
+  'flac2ogg') __EXT=flac ;;
+  ?) exit 1 ;;
+esac
+
+find . -type f -name "*.${__EXT}" -print0 | \
+  parallel -0 --bar 'ffmpeg -loglevel error -i {} -c:a libvorbis -q:a 6 -vn {}.ogg && rm {}'
+
+find . -name "*.${__EXT}.ogg" -exec bash -c 'mv "$1" "${1%.'${__EXT}'.ogg}".ogg' - '{}' \;

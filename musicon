@@ -1,0 +1,46 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze 2020
+# Description:  control multiple media players
+
+player=xmms
+[[ -n $MUSICON_PLAYER ]] && player=$MUSICON_PLAYER 
+
+case $1 in
+  spawn)
+    case $player in
+      mpd)  ncmpcpp_start ;;
+      xmms) xmms ;;
+    esac
+    ;;
+  toggle)
+    case $player in
+      mpd)  mpc toggle ;;
+      xmms) xmms -t ;;
+    esac
+    ;;
+  rwd)
+    case $player in
+      mpd)  mpc cdprev ;;
+      xmms) xmms -r ;;
+    esac
+    ;;
+  fwd)
+    case $player in
+      mpd)  mpc next ;;
+      xmms) xmms -f ;;
+    esac
+    ;;
+  stop)
+    case $player in
+      mpd)  mpc stop ;;
+      xmms) xmms -s ;;
+    esac
+    ;;
+  single)
+    case $player in
+      mpd)  mpc single ;;
+      xmms) xmms -A ;;
+    esac
+    ;;
+esac

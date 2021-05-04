@@ -86,7 +86,7 @@ Useful scripts to convert music in flac and mp3 to ogg using `ffmpeg`. `flacalbu
 
 ### get-here
 
-Downloads something from an url that's on the clipboard to the current directory, using wget. Inteded to be used with file managers such as Thunar or from the terminal.
+Downloads something from an url that's on the clipboard to the current directory, using wget. Multiple files can be separated by line breaks. Inteded to be used with file managers such as Thunar, Dolphin or from the terminal. For usage with Dolphin/kservices5, the accompaining file `wget_here.desktop` can be placed on `~/.local/share/kservices5/ServiceMenus/`, provided this script is on `$PATH`
 
 
 ### hiragana2katakana
@@ -122,6 +122,11 @@ Beep morse code messages through the internal speaker. Usage is `morsebeep "your
 ### mpd_nodaemon & ncmpcpp_start
 
 Run Music Player Daemon without being a daemon 24/7. This program achieves this by spawning MPD and related programs, then closing them after nothing has been played for a set amount of time (default 10 minutes), and secured that your preffered MPD client is closed. It also optionally respawns polybar, which tends to die if you have the MPD widget on it and you kill the MPD process. You can use the script ncmpcpp_start to see how you can start this daemon alongside your preffered MPD client. 
+
+
+### musicon
+
+Control multiple music players without having to change your keybindings every time.
 
 
 ### noises
@@ -237,6 +242,11 @@ This is intended to be called from crontab, during X login, or from a keyboard s
 ### wallchange
 
 Similar to `wallpaper_cycler`, but just sets a random wallpaper with hsetroot.
+
+
+### webm2gif
+
+Convert webm animations to GIF.
 
 
 ### window_center

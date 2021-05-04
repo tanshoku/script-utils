@@ -20,12 +20,12 @@ height=$(xdotool getactivewindow getwindowgeometry --shell | head -5 | tail -1 |
 #newPosX=$((screenWidth/2-width/2))
 curPosX=$(xdotool getmouselocation | cut -d' ' -f1 | cut -d':' -f2)
 
-if (( curPosX <= 768 )) ; then
+#if (( curPosX <= 768 )) ; then
   #newPosX=$((768/2-width/2))
   newPosX=$((1280/2-width/2))
-else
-  newPosX=$((768+1280/2-width/2))
-fi
+#else
+#  newPosX=$((768+1280/2-width/2))
+#fi
 newPosY=$((screenHeight/2-height/2))
 
 xdotool getactivewindow windowmove "$newPosX" "$newPosY"

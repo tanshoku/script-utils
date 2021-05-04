@@ -2,5 +2,5 @@
 
 mpd_nodaemon &
 
-#xfce4-terminal -I cantata --disable-server --hide-menubar --hide-scrollbar --title ncmpcpp --command "ncmpcpp" &
-urxvt -icon $HOME/.icons/GNUstep/apps/48/juk.png -title ncmpcpp +sb -name ncmpcpp -e ncmpcpp &
+xfce4-terminal -I cantata --disable-server --hide-menubar --hide-scrollbar --title ncmpcpp --command "ncmpcpp" &
+#urxvt -icon $HOME/.icons/GNUstep/apps/48/juk.png -title ncmpcpp +sb -name ncmpcpp -e ncmpcpp &

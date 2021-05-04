@@ -133,7 +133,9 @@ add_new() {
 update() {
   if echo "$database" | grep -a "$service" | grep -a "$user" &> /dev/null; then
     password_line=$(echo "$database" | grep -a "$service" | grep -a "$user")
-	  database=$(echo "$database" | grep -av "$password_line")
+    #use variable substitution instead of grep, as it would remove all paswords from
+    #a service with multiple users for some reason
+	  database=${database/${password_line}/}
 
   	#removing a password from the database is just an incomplete update ;)
 	  [[ "$1" == remove ]] && return 0;
@@ -514,3 +516,7 @@ until [[ -z $batch ]]; do
 done
 
 exit 0
+
+
+# TODO
+# store a hash of the master passphrase

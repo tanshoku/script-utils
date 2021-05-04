@@ -1,0 +1,10 @@
+#!/bin/zsh
+#https://askubuntu.com/a/1117290
+
+#Create a palette
+ffmpeg -y -i "${1}" -vf palettegen /tmp/palette.png
+
+#Convert the video
+ffmpeg -y -i "${1}" -i /tmp/palette.png -filter_complex paletteuse -r 10 "${1/webm/gif}"
+
+rm /tmp/palette.png
