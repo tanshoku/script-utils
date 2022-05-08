@@ -188,7 +188,7 @@ I'm currently looking for a way to make it only use either `maim` or `scrot` to 
 
 ### shwll
 
-Copycat of the popular 5-letter word game. Grabs words procedurally from aspell dictionaries. Tries its best to keep you from cheating. Saves score data. Copies emojis to your clipboard when you're finished. Except for grabbing the words from the dictionary, everything else is pure ZSH. All of this in less than 100 lines of code.
+Copycat of the popular 5-letter word game. Grabs daily words procedurally from aspell dictionaries. Tries its best to keep you from cheating. Saves score data. Copies emojis to your clipboard when you're finished. Press ESC or ^C to quit. Except for grabbing the words from the dictionary, everything else is pure ZSH. All of this in less than 100 lines of code.
 
 
 ### spurdify

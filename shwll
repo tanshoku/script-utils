@@ -1,6 +1,6 @@
 #!/bin/zsh
 #
-# Author:       Elizabeth Bodaneze          2022
+# Author:       Elizabeth Bodaneze   03-feb-2022
 # Description:  A shell script version of wordle
 # Requires:     zsh, aspell
 #
@@ -16,7 +16,7 @@ answer=$(echo ${wordlist} | head -1)
 save_quit() {
   ( echo "save_attempt=(${save_attempt})\nsave_seed=${seed}"
     for ((c=1;c<=max_tries;c++)) ; do
-      [[ -n $success ]] && (( c == i )) && (( save_tries[c] += 1 ))
+      [[ -n "$success" && -n "$letter" ]] && (( c == i )) && (( save_tries[c] += 1 ))
       echo "save_tries[$c]=${save_tries[c]}"
     done
   ) > $HOME/.shwll_savefile
@@ -36,13 +36,7 @@ save_quit() {
 
 trap save_quit INT
 answer=${answer:u}
-if [[ -a $HOME/.shwll_savefile ]]; then
-  . $HOME/.shwll_savefile
-else
-  touch $HOME/.shwll_savefile
-fi
-
-#echo $answer $seed
+[[ -a $HOME/.shwll_savefile ]] && . $HOME/.shwll_savefile
 
 for ((i=1;i<=max_tries;i++)) ; do
   (( save_seed != seed )) && [[ -z "$erased" ]] && unset save_attempt && erased=1
