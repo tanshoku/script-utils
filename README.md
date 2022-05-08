@@ -188,7 +188,7 @@ I'm currently looking for a way to make it only use either `maim` or `scrot` to 
 
 ### shwll
 
-Copycat of the viral 5-letter word game. Grabs words from aspell dictionaries.
+Copycat of the popular 5-letter word game. Grabs words procedurally from aspell dictionaries. Tries its best to keep you from cheating. Saves score data. Copies emojis to your clipboard when you're finished. Except for grabbing the words from the dictionary, everything else is pure ZSH. All of this in less than 100 lines of code.
 
 
 ### spurdify
@@ -302,7 +302,7 @@ Center the currently active window. Currently a dirty collection of hacks, but I
 
 ### wttr
 
-Wrapper for wttr.in and graph.no. Requires `ccache` from this repo to cache data so your IP doeesn'tget banned from pinging the services every time you run the script. Use `wttr -h` for options. The name of your city can be set on an environment variable called `WTTRCITY`, or on the beginning of this script.
+Wrapper for wttr.in and graph.no. Requires `ccache` from this repo to cache data so your IP doeesn't get banned from pinging the services every time you run the script. Use `wttr -h` for options. The name of your city can be set on an environment variable called `WTTRCITY`, or on the beginning of this script.
 
 
 ### xrdb-colour-preview

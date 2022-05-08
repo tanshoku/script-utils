@@ -19,10 +19,10 @@ save_quit() {
       [[ -n $success ]] && (( c == i )) && (( save_tries[c] += 1 ))
       echo "save_tries[$c]=${save_tries[c]}"
     done
-  ) > savefile
-  . ./savefile
+  ) > $HOME/.shwll_savefile
+  . $HOME/.shwll_savefile
 
-  if (( ${1} != 0 )) ; then
+  if [[ -n "${1}" ]] ; then
     for ((c=1;c<=max_tries;c++)) ; do
       (( c > 1 )) && e=s
       printf "%d attempt%s: %d; " "${c}" "${e}" "${save_tries[c]}"
@@ -36,7 +36,12 @@ save_quit() {
 
 trap save_quit INT
 answer=${answer:u}
-. ./savefile
+if [[ -a $HOME/.shwll_savefile ]]; then
+  . $HOME/.shwll_savefile
+else
+  touch $HOME/.shwll_savefile
+fi
+
 #echo $answer $seed
 
 for ((i=1;i<=max_tries;i++)) ; do
@@ -52,7 +57,7 @@ for ((i=1;i<=max_tries;i++)) ; do
       read -sk1 "letter?"
       [[ "${letter}" =~ '[a-z]' ]] && (( ${#attempt} < word_size )) && attempt+=${letter:u}
       [[ "${letter}" == $'\177' ]] && attempt=${attempt%?}
-      [[ "${letter}" == $'\033' ]] && save_quit 0
+      [[ "${letter}" == $'\033' ]] && save_quit 
       echo -n "\r\e[K${attempt}"
     done
     save_attempt[i]=${attempt}
