@@ -2,9 +2,11 @@
 # i3lock-color script by Elizabeth Bodaneze
 # Dec 2018
 
-# set mode as "scrot" for a screenshot or "bg" for
-# the desktop background as set by nitrogen
-mode=scrot
+# set mode as "scrot" for a screenshot,
+# "bg" for the desktop background as set by nitrogen
+#  or "image" for a random picture from a directory
+mode=image
+img_dir="$HOME/Pictures/.xscreensaver-art/"
 
 # optional padlock icon
 #LOCK_ICON=~/.icons/lock.png
@@ -65,6 +67,24 @@ elif [[ "$mode" == "scrot" ]]; then
   else
     mogrify "${HUE[@]}" "${EFFECT[@]}" "$IMAGE"
   fi
+elif [[ "$mode" == "image" ]] ; then
+  file=$(find -L "${img_dir}" -type f | less | shuf -n1)
+
+  cp "${file}" "$IMAGE"
+  echo "${file}" > /tmp/i3lock-color-image
+
+  screen_resolution=$(xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/')
+
+  convert "$IMAGE" \
+  \( -clone 0 -blur 0x5 -resize $screen_resolution\! \) \
+  \( -clone 0 -resize $screen_resolution \) -delete 0 -gravity center -composite \
+  "${HUE[@]}" "$IMAGE"
+
+  if which corrupter > /dev/null ; then
+    corrupter -lag 0.001 -stride 0.001 -mag 0.01 -bheight 128 "$IMAGE" "$IMAGE"
+  else
+    mogrify "${HUE[@]}" "${EFFECT[@]}" "$IMAGE"
+  fi
 fi
 
 
@@ -87,45 +107,45 @@ _rmimg&
 pkill -u $USER -USR1 dunst
 
 i3lock \
--n                         \
---insidevercolor=$C        \
---ringvercolor=$V          \
+-n                          \
+--insidever-color=$C        \
+--ringver-color=$V          \
 \
---insidewrongcolor=$C      \
---ringwrongcolor=$W        \
+--insidewrong-color=$C      \
+--ringwrong-color=$W        \
 \
---insidecolor=$B           \
---ringcolor=$D             \
---linecolor=#00000000      \
---separatorcolor=$D        \
+--inside-color=$B           \
+--ring-color=$D             \
+--line-color=#00000000      \
+--separator-color=$D        \
 \
---verifcolor=$T            \
---wrongcolor=$T            \
---layoutcolor=$T           \
---keyhlcolor=$P            \
---bshlcolor=$W             \
---greetercolor=$T          \
+--verif-color=$T            \
+--wrong-color=$T            \
+--layout-color=$T           \
+--keyhl-color=$P            \
+--bshl-color=$W             \
+--greeter-color=$T          \
 \
---line-uses-inside         \
---veriftext=""             \
---wrongtext=""             \
---ring-width=7             \
--i "$IMAGE"                \
---indpos="x+57:y+983"      \
---radius=10                \
+--line-uses-inside          \
+--verif-text=""             \
+--wrong-text=""             \
+--ring-width=7              \
+-i "$IMAGE"                 \
+--ind-pos="x+57:y+983"      \
+--radius=10                 \
 \
---clock                    \
---timestr="%R"             \
---timecolor=$T             \
---timesize=72              \
---timepos="640:512"       \
---datestr=" %a, %d/%m/%Y"  \
---datesize=20              \
---datecolor=$T             \
---noinputtext=""           \
---greetersize=18           \
---greetertext="Locked"     \
---greeterpos="x+120:y+989" \
+--clock                     \
+--time-str="%R"             \
+--time-color=$T             \
+--time-size=72              \
+--time-pos="640:512"        \
+--date-str=" %a, %d/%m/%Y"  \
+--date-size=20              \
+--date-color=$T             \
+--noinput-text=""           \
+--greeter-size=18           \
+--greeter-text="Locked"     \
+--greeter-pos="x+120:y+989" \
 --pass-media-keys
 #--indicator
 

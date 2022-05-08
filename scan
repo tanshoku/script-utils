@@ -10,7 +10,7 @@ device="epsonscan2:ut:esci2:usb:ES010C:316"
 gamma="2.0"
 prefix="sketch"
 ext="jpg"
-quality=96
+quality=92
 tot_pages=1
 mode="Grayscale"
 bri_con="10x8"
@@ -55,7 +55,7 @@ while getopts ":a:gcHDLnbCx:s:q:d:h" opt; do
     "g") mode="Grayscale"      ; m_key+="\e[0mg"                          ;;
     "c") mode="Color"          ; m_key+="\e[94;1mc"                       ;;
     "H") dpi="600dpi"          ; m_key+="\e[97mH"                         ;;
-    "D") dpi="600dpi"          ; m_key+="\e[96mD\e[0m" ; scale="33.3333%" ;;
+    "D") dpi="600dpi"          ; m_key+="\e[96mD\e[0m" ; scale="50%"      ;;
     "L") rotation=270          ; m_key+="\e[32mL\e[0m"                    ;;
     "n") prefix=""             ; m_key+="\e[90mn\e[0m"                    ;;
     "b") gamma="2.2"           ; m_key+="\e[95mb"                         ;; 

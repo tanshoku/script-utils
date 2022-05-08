@@ -9,6 +9,6 @@ case $call in
 esac
 
 find . -type f -name "*.${__EXT}" -print0 | \
-  parallel -0 --bar 'ffmpeg -loglevel error -i {} -c:a libvorbis -q:a 6 -vn {}.ogg && rm {}'
+  parallel -0 --bar 'ffmpeg -loglevel error -i {} -c:a libvorbis -q:a 5 -vn {}.ogg && rm {}'
 
 find . -name "*.${__EXT}.ogg" -exec bash -c 'mv "$1" "${1%.'${__EXT}'.ogg}".ogg' - '{}' \;

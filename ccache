@@ -1,0 +1,93 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze         2022
+# Description:  Cache the output of any command
+# Requires:     zsh, coreutils, converts
+#
+
+cache_file="/tmp/command_cache"
+expiration=3600
+
+error="cache: invalid option -- $@\n\
+Try 'cache --help' for more information.\n"
+
+help_text="\
+ccache - cache the output of anything.\n\
+\n\
+Options:\n\
+    -c     - the command to be cached, quoted\n\
+    -e     - expiration time in seconds\n\
+    -f     - cache file other than ${cache_file}\n\
+    -n     - does not print if and when the data was cached\n\
+    -F     - force cache update\n\
+    -i     - ignore expiration time\n\
+    -u     - uncache\n\
+    -h     - this help screen\n"
+
+
+#set -x
+
+run_comm() {
+  printf "%s:%s:%s:" "${sum}" "${now}" "${expiration}" >&3 
+  zsh -c "setopt NO_NOMATCH;${com}" | tee >( gzip | base64 | tr -d '\n' >&3)
+  printf "\n" >&3
+}
+
+_cache() {
+  com=($(echo ${@}))
+
+  if ! which ${com[1]} > /dev/null ; then
+    printf "%s not found!\n" "${com}"
+    exit 1
+  fi
+
+  sum=$(printf "%s" "${com}" | cksum)
+  now=$(date +%s)
+
+  if [[ -a "${cache_file}" ]] ; then
+    if rawdata=$(grep "${sum}" "${cache_file}") ; then
+
+      comtime=$(echo "${rawdata}" | cut -d':' -f2)
+      bestby=$(echo "${rawdata}" | cut -d':' -f3)
+      (( timediff = now - comtime ))
+ 
+      if [[ -n ${ignore} ]] || (( timediff < bestby )) && [[ -z ${force} ]] && [[ -z ${uncache} ]] ; then
+        if [[ -z ${no_message} ]] ; then
+          tdiff=$(converts -l ${timediff})
+          printf "Cached data from %s ago:\n" "${tdiff}"
+        fi
+
+        printf "%s" "${rawdata}" | cut -d':' -f4 | base64 -d | gzip -d
+      else
+        grep -v "${rawdata}" "${cache_file}" > /tmp/cache.tmp
+        mv /tmp/cache.tmp "${cache_file}"
+        if [[ -z ${uncache} ]] ; then
+          run_comm 3>> "${cache_file}"
+        fi
+      fi
+
+    else
+      run_comm 3>> "${cache_file}"
+    fi
+
+  else
+    run_comm 3>> "${cache_file}"
+  fi
+}
+
+
+while getopts ":c:e:f:nFiuh" opt; do
+  case ${opt} in
+    c) call=$OPTARG;;
+    e) expiration=$OPTARG;;
+    f) cache_file=$OPTARG;;
+    n) no_message=1;;
+    F) force=1;;
+    i) ignore=1;;
+    u) uncache=1;;
+    h) printf $help_text; exit 0;;
+    \?) printf $error; exit 1;;
+  esac
+done
+
+_cache $call

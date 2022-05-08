@@ -2,32 +2,11 @@
 # put the computer to sleep after N seconds
 # Elizabeth Bodaneze 2018
 
-converts() {
-    local t=$1
-
-    local d=$((t/60/60/24))
-    local h=$((t/60/60%24))
-    local m=$((t/60%60))
-    local s=$((t%60))
-
-    if [[ $d > 0 ]]; then
-            [[ $d = 1 ]] && echo -n "$d day " || echo -n "$d days "
-    fi
-    if [[ $h > 0 ]]; then
-            [[ $h = 1 ]] && echo -n "$h hour " || echo -n "$h hours "
-    fi
-    if [[ $m > 0 ]]; then
-            [[ $m = 1 ]] && echo -n "$m minute " || echo -n "$m minutes "
-    fi
-    if [[ $d = 0 && $h = 0 && $m = 0 ]]; then
-            [[ $s = 1 ]] && echo -n "$s second" || echo -n "$s seconds"
-    fi
-}
 
 screen_lock() {
   sleep 15
-  #i3lock-color
-  xscreensaver-command -lock
+  i3lock-color
+  #xscreensaver-command -lock
 }
 
 interval=$1
@@ -37,7 +16,7 @@ if ! [[ -a /tmp/magic_suspend.pid.lock ]]; then
   screen_lock &
 
   until (( interval == 0 )); do
-    notify-send "Sleeping in T-$(converts $interval)"
+    notify-send "Sleeping in T-$(converts -l $interval)"
     interval=$((interval/2))
     sleep $interval
   done

@@ -1,0 +1,174 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze        2018
+# Description:  maeKs yuor tExt look like thsi
+# Requires:     zsh
+#
+# Rev2, may 2022: add x-DDD emote mode
+
+# possible modules: changecase switchchars simulatetypo deletechar duplicatechar addtypo
+use_modules=(switchchars simulatetypo deletechar duplicatechar addtypo)
+# change punctuation to :-DDD and x-DDD emoticons
+addemote=1
+#punctuation to turn into emotes
+punctuation=".:;,"
+#punctuation to turn into x-DDD emotes
+punctuation_x='!?'
+# types: regular spurdo h4x0r
+typotype=spurdo
+# chance of happening, 0.00-1.00
+changecase_chance=0.5
+switchchars_chance=0.01
+simulatetypo_chance=0.8
+addtypo_chance=0.05
+deletechar_chance=0.1
+duplicatechar_chance=0.1
+
+#pre-compute the chances
+for i in changecase switchchars simulatetypo deletechar duplicatechar addtypo; do
+	 varname=${i}_chance
+	 chance=${(P)varname}
+	 chance=$((chance*100))
+	 typeset $varname=$chance
+done
+
+#pre-compute the numer of modules
+n_of_modules=${#use_modules[@]}
+
+# variables for the typo simulator
+if [[ "$typotype" == "regular" ]]; then
+  char_q="wa"; char_w="qes"; char_e="wrd"; char_r="etf"; char_t="ryg"; char_y="tuh"; char_u="yij"; char_i="uko"; char_o="ipl"; char_p="[;o"
+  char_a="qs"; char_s="awd"; char_d="sef"; char_f="rdg"; char_g="tfbh"; char_h="gbjn"; char_j="hunmk"; char_k="jim,l"; char_l="ko;,."
+  char_z="xs"; char_x="zc"; char_v="cf"; char_b="vngh"; char_n="bmhj"; char_m="n,jk"
+elif [[ "$typotype" == "spurdo" ]]; then
+  # spurdo talk
+  char_q="k"; char_w="v"; char_e="e"; char_r="r"; char_t="ddt"; char_y="y"; char_u="u"; char_i="i"; char_o="oö"; char_p="bbp"
+  char_a="aä"; char_s="s"; char_d="dt"; char_f="fv"; char_g="gk"; char_h="h"; char_j="j"; char_k="kg"; char_l="l"
+  char_z="s"; char_x="x"; char_v="v"; char_b="bp"; char_n="n"; char_m="m"
+elif [[ "$typotype" == "h4x0r" ]]; then
+  # spurdo talk
+  char_q="q"; char_w="w"; char_e="3"; char_r="r"; char_t="7"; char_y="y"; char_u="u"; char_i="i"; char_o="0"; char_p="p"
+  char_a="4"; char_s="5"; char_d="d"; char_f="f"; char_g="g"; char_h="h"; char_j="j"; char_k="k"; char_l="1"
+  char_z="2"; char_x="x"; char_v="v"; char_b="6"; char_n="n"; char_m="m"
+fi
+
+roll() {
+	(( $[${RANDOM}%100] <= $1 )) && return 0
+	return 1
+}
+
+changecase() {
+  case $char in
+	  [A-Z]) char=$char:l;;
+	  [a-z]) char=$char:u;;
+  esac
+}
+
+switchchars() {
+  oldchar=$char
+	if ((i > 1)) && (( i < length )); then
+    index=$((i-1))
+ 	  char=${msg:$index:1}
+ 	  result=${result: : -1}
+ 	  char=${oldchar}${char}
+  fi
+}
+
+typo() {
+	varname=char_$char
+	# substitute is set to the contents of the variable named char_$char (ie char_a, char_b ... char_z)
+	# i.e; if we have char=a, varname will be "char_a", and substitute will be "aä" if on spurdo mode
+	# or "qs" if on regular mode, or whatever the variable "char_a" was set to
+  substitute=${(P)varname}
+  sizeof=${#substitute}
+  if (( sizeof > 1 )); then
+    randomtypo=$[${RANDOM}%$sizeof]
+  else
+    randomtypo=0
+  fi
+  char=${substitute:$randomtypo:1}
+}
+
+simulatetypo() {
+  case $char in
+    [a-z]) typo;;
+    [A-Z]) char=$char:l
+           typo
+           char=$char:u
+           ;;
+  esac
+}
+
+addtypo() {
+  oldchar=$char
+  case $char in
+    [a-z]) typo;;
+    [A-Z]) char=$char:l
+           typo
+           char=$char:u
+           ;;
+  esac
+  if roll 50 ; then
+    char=$oldchar$char
+  else
+    char=$char$oldchar
+  fi
+}
+
+deletechar() {
+  char=""
+}
+
+duplicatechar() {
+	char=$char$char
+}
+
+addemote() {
+  case "$char" in
+   [$punctuation])   d_amount=$(shuf -i 1-10 -n 1)
+                     char=" :-"
+                     for ((x=0;x<=d_amount;x++)); do
+                       char+="D"
+                     done
+                     ;;
+   [$punctuation_x]) d_amount=$(shuf -i 1-10 -n 1)
+                     char=" x-"
+                     for ((x=0;x<=d_amount;x++)); do
+                       char+="D"
+                     done
+                     ;;
+  esac
+}
+
+main() {
+	#read the input characters one by one
+	for ((i=0;i<=length;i++)); do
+	  char=${msg:$i:1}
+	  #grab a random module
+  	module_index=$[${RANDOM}%$n_of_modules+1]
+	  m_run=$use_modules[module_index]
+	  #roll a dice to see if we will run the function or not
+	  roll=${m_run}_chance
+	  if roll ${(P)roll}; then
+	    $m_run
+	  fi
+	  [[ -n $addemote ]] && addemote
+	  result+=${char}
+	done
+
+	printf "%s\n" "$result"
+}
+
+if [[ -n "$1" ]]; then
+  msg="$@"
+  length=${#msg}
+  main
+else
+  while read msg; do
+    length=${#msg}
+    main
+    result=
+  done
+fi
+
+exit 0

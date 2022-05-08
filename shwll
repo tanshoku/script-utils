@@ -1,0 +1,78 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze          2022
+# Description:  A shell script version of wordle
+# Requires:     zsh, aspell
+#
+max_tries=6
+word_size=5
+dict=en
+seed=$(date +%Y%m%d)
+wordlist=$(aspell -d ${dict} dump master \
+            | grep -E "^[[:lower:]]{${word_size}}$" \
+            | sort -R --random-source=<(yes ${seed}) )
+answer=$(echo ${wordlist} | head -1)
+
+save_quit() {
+  ( echo "save_attempt=(${save_attempt})\nsave_seed=${seed}"
+    for ((c=1;c<=max_tries;c++)) ; do
+      [[ -n $success ]] && (( c == i )) && (( save_tries[c] += 1 ))
+      echo "save_tries[$c]=${save_tries[c]}"
+    done
+  ) > savefile
+  . ./savefile
+
+  if (( ${1} != 0 )) ; then
+    for ((c=1;c<=max_tries;c++)) ; do
+      (( c > 1 )) && e=s
+      printf "%d attempt%s: %d; " "${c}" "${e}" "${save_tries[c]}"
+    done
+    echo
+    echo -n "${emojified}" | xclip -selection clipboard
+  fi
+
+  exit 0
+}
+
+trap save_quit INT
+answer=${answer:u}
+. ./savefile
+#echo $answer $seed
+
+for ((i=1;i<=max_tries;i++)) ; do
+  (( save_seed != seed )) && [[ -z "$erased" ]] && unset save_attempt && erased=1
+  if [[ -n ${save_attempt[i]} ]] && [[ ${save_seed} == ${seed} ]] ; then
+    attempt="${save_attempt[i]}"
+  else
+    attempt=''
+    until [[ "${letter}" == $'\n' ]] \
+      && (( ${#attempt} == ${word_size} )) \
+      && [[ "${wordlist}" =~ ".*${attempt:l}.*" ]] ; do
+  
+      read -sk1 "letter?"
+      [[ "${letter}" =~ '[a-z]' ]] && (( ${#attempt} < word_size )) && attempt+=${letter:u}
+      [[ "${letter}" == $'\177' ]] && attempt=${attempt%?}
+      [[ "${letter}" == $'\033' ]] && save_quit 0
+      echo -n "\r\e[K${attempt}"
+    done
+    save_attempt[i]=${attempt}
+  fi
+
+  pool=${answer}
+  printf "\r\e[30m"
+  for ((c=0;c<word_size;c++)) ; do
+    v="\e[47m${attempt:$c:1}" && tmp="⬜"
+    [[ ${attempt:$c:1} =~ "[${pool}]" ]] && v="\e[43m${attempt:$c:1}" && pool=${pool/${attempt:$c:1}/} && tmp="🟨"
+    [[ ${attempt:$c:1} == ${answer:$c:1} ]] && v="\e[42m${attempt:$c:1}" && tmp="🟩"
+    echo -n "${v}"
+    emojified+=${tmp}
+    sleep .2
+  done
+  echo "\e[0m"
+  emojified+="\n"
+
+  [[ ${attempt} == ${answer} ]] && success=1 && break 
+done
+
+echo "correct answer: ${answer}"
+save_quit 1

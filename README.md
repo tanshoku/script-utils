@@ -43,6 +43,11 @@ There is an internal setup script to generate the configuration file on the firs
 Shows a countdown timer on your terminal. Usage goes like `timer 1d 23h 45m 50s` or `timer 3600`
 
 
+### ccache
+
+Cache the output of any command you wish! Compresses the data with gzip and encodes it with base64 for easier storage! Use `ccache -h` for more info. Plese check if your command runs correctly before caching it, or you'll end up with a corrupt cache file. Also notice that this only caches stdout.
+
+
 ### colortest, colortest-readable & colortest-small
 
 Once I saw a really cool colortest script on a forum, but never found it online, so I wrote my own, algorithmically. The `-readable` version is basically the same, but the code is more legible, and the `-small` version simply prints the 16 terminal colours as 4x1 boxes.
@@ -51,6 +56,11 @@ Once I saw a really cool colortest script on a forum, but never found it online,
 ### colourpicker
 
 A wrapper script for `grabc`, it also prints the colour on your terminal, if it supports 24-bit colours, the html and rgb values, and copies the html/hex value to the clipboard.
+
+
+### converts
+
+Converts raw second values into more human-readable formats. Usage is as simple as `converts 3600` or `converts -l 1652032992` for a long version.
 
 
 ### debppa
@@ -86,7 +96,7 @@ Useful scripts to convert music in flac and mp3 to ogg using `ffmpeg`. `flacalbu
 
 ### get-here
 
-Downloads something from an url that's on the clipboard to the current directory, using wget. Multiple files can be separated by line breaks. Inteded to be used with file managers such as Thunar, Dolphin or from the terminal. For usage with Dolphin/kservices5, the accompaining file `wget_here.desktop` can be placed on `~/.local/share/kservices5/ServiceMenus/`, provided this script is on `$PATH`
+Downloads something from an url that's on the clipboard to the current directory, using wget. Multiple files can be separated by line breaks. Can be used with file managers such as Thunar, Dolphin or from the terminal. 
 
 
 ### hiragana2katakana
@@ -102,6 +112,16 @@ Half-Life 2 hopper mine noises. `hopper t` places a mine, `hopper n 10` activate
 ### i3lock-color
 
 Wrapper script for [i3lock-color](https://github.com/Raymo111/i3lock-color) and [corrupter](https://github.com/r00tman/corrupter). Automagically grabs colours from X resources, so it matches your terminal theme and so on. Also requires `scrot` and `imagemagick`.
+
+
+### krita_recorder
+
+A script to record timelapse videos by taking one screenshot a second. Can also compensates for various sources of lag by changing the delay by a small amount. Requires `xdotool`, `scrot` or `main`. Options can be adjusted inside the script.
+
+
+### lapse
+
+Make timelapse videos more easily from the command-line. I made this since I find it quite annoying and slow to work with the point-and-click, drag-and-drop interfaces of video editors, and I often need to do a timelapse video with something like ten separate files. Run `lapse -h` to find out more about how to use this script. Optionally requires [mikmod2wav](https://github.com/laomaiweng/mikmod2wav) to convert tracker/module music files to something that can be embedded into an MP4
 
 
 ### magic_suspend
@@ -164,6 +184,32 @@ A small daemon to make one or more drives sleep using hdparm, since `hdparm -s` 
 Wrapper script for `maim` and `scrot` that allows you to copy the resulting screenshot to the clipboard, save it and so on. Use `shot -h` for usage info.
 
 I'm currently looking for a way to make it only use either `maim` or `scrot` to avoid unneeded dependencies, but `scrot` sucks at selections and leaves garbage on the screen when you're not using a compositor, when you call it from scripts with a keyboard shortcut it dies because it captures the keypresses you used to call the script, and when it works, it doesn't show the selection crosshair, which is confusing because you can't know the screenshooter is running; on the other hand, `maim` can't capture window borders without some cumbersome hacks that break it on different WMs or themes.
+
+
+### shwll
+
+Copycat of the viral 5-letter word game. Grabs words from aspell dictionaries.
+
+
+### spurdify
+
+Mäke your text loök like this :-DDD Usage is as simple as `spurdify "sentence"` or `spurdify < file`. Written in plain ZSH. Yes, it supports having text piped into it, as well. Excerpt of the first couple stanzas of Edgar Allan Poe's "The Raven" after being destroyed by this script:
+
+```
+Once upon a midnighd dreaary :-DDD wwhile ponndered weak annd weary :-DDDDD
+Over many a quaintt  antcurious volume of förgootteloree :-DDDDDDD
+Vhilee I nödded :-DD nearlly nappiing :-DDDD suddenly there cäme a dapping :-DDDDDDDDD
+As fo some one gently rapping :-DDDDrappig at my chamber door :-DDDDD
+`'Tis some visitor :-DDD' I muuttered :-DDDDDDDDDDD `tapping  at my chamber  ddoor -
+Only this :-DDDDDDDDDD and nothing mmore :-DDD'
+
+Ah :-DDDDD ditncdly I remember it was iin the bleak Decemper :-DDD
+Ant eachhseparade dying emmber wrought its  ghost ubon the flöoorr :-DDDDDDDDD
+Eagerrly I wished the morrow :-DDDDDDDDD - vainly I  hadd sought o bborrow
+Froöm my books surcease of orrow - srrow or the losd Lenore -
+Fo rdhe rare and adiant maiden whom the angel snamed Lenore -
+Namelss here for evermore :-DDD
+```
 
 
 ### startfbt
@@ -256,7 +302,7 @@ Center the currently active window. Currently a dirty collection of hacks, but I
 
 ### wttr
 
-Wrapper for wttr.in and graph.no. Use `wttr -h` for options. The name of your city can be set on an environment variable called `WTTRCITY`, or on the beginning of this script.
+Wrapper for wttr.in and graph.no. Requires `ccache` from this repo to cache data so your IP doeesn'tget banned from pinging the services every time you run the script. Use `wttr -h` for options. The name of your city can be set on an environment variable called `WTTRCITY`, or on the beginning of this script.
 
 
 ### xrdb-colour-preview

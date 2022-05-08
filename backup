@@ -300,7 +300,7 @@ main() {
 
   if [[ $1 = "remote" ]]; then
     echo "Scanning local network..."
-    destination_mac=$(echo $destination_mac | tr -s '[:lower:]' '[:upper:]')
+    destination_mac=${destination_mac:u}
     destination_ip=$(sudo nmap -sP -PS22 $subnet | sed -n '/Host/d;/'$destination_mac'/ {x;p;d}; x' | tr -d '[:alpha:] ' | sed '2,$d')
     backup_root=$USER@$destination_ip:$HOME/backup
 

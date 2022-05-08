@@ -2,29 +2,13 @@
 #
 # Author:       Elizabeth Bodaneze 2021
 # Description:  Download clipboard links
-# Requires:     zsh, wget, xclip, (optional: kdialog, qdbus)
+# Requires:     zsh, wget, xclip
 # Usage:        get-here [.]
 #               multiple files can be separated by new lines
-
-# https://unix.stackexchange.com/questions/4988/how-do-i-test-to-see-if-an-application-exists-in-path
-exists () {
-  case $(command -v -- "$1") in
-    /*) return 0;;
-    *) return 1;;
-  esac
-}
 
 [[ -n $1 ]] && cd $1
 
 url_list=$(xclip -o -selection clipboard)
-
-nofiles=$(echo ${url_list} | wc -l)
-if exists kdialog && exists qdbus && (( nofiles > 1 )) && [[ -n $DESKTOP_SESSION ]] ; then
-  # https://develop.kde.org/deploy/kdialog/
-  dbusRef=($(kdialog --progressbar "Initializing" ${nofiles}))
-  showprogress=1
-  x=1
-fi
 
 echo ${url_list} \
     | while read url ; do 
@@ -35,16 +19,5 @@ echo ${url_list} \
           filename=$(echo $filename | sed 's/\?format=/./;s/\&name=.*//')
         fi
 
-        if [[ -n $showprogress ]] ; then
-          qdbus $dbusRef Set "" value $x
-          qdbus $dbusRef setLabelText "Downloading: ${filename}"
-          (( x++ ))
-        fi
-
-        wget "${url}"
+        wget "${url}" --no-clobber -O "${filename}"
       done
-
-
-if [[ -n $showprogress ]] ; then
-  qdbus $dbusRef close
-fi

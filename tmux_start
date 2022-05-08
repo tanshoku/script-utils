@@ -5,14 +5,11 @@
 # Requires:     tmux
 # Usage:        tmux_start
 
-#term_command=urxvt
-#keys=(+sb -name tmux -geometry 201x75 -e)
+term_command=urxvt
+keys=(+sb -name tmux -geometry 201x75 -e)
 
 #term_command=xfce4-terminal 
-#keys=(--hide-menubar --maximize -x)
-
-term_command=konsole
-keys=(--hide-menubar --profile Profile2 -e)
+#keys=(-I utilities-terminal --hide-menubar --maximize -x)
 
 if sessions=$(tmux ls) ; then
   $term_command $keys tmux attach -c ${sessions:0:1} &

@@ -1,0 +1,46 @@
+#!/bin/zsh
+#
+# Author:       Elizabeth Bodaneze 2022
+# Description:  Convert seconds to human-readable time
+# Usage:        converts [-l] [seconds]
+#
+
+
+[[ $1 = "-l" ]] && long=1 && shift
+local t=$1
+
+if [[ -z $long ]] ; then
+  typeset -Z2 y
+  typeset -Z3 d
+  typeset -Z2 h
+  typeset -Z2 m
+  typeset -Z2 s
+fi
+
+y=$((t/60/60/24/365))
+d=$((t/60/60/24%365))
+h=$((t/60/60%24))
+m=$((t/60%60))
+s=$((t%60))
+
+
+if [[ -n $long ]] ; then
+  date=''
+
+  for i in year day hour minute second ; do
+    case $i in
+      year)   j=$y ;;
+      day)    j=$d ;;
+      hour)   j=$h ;;
+      minute) j=$m ;;
+      second) j=$s ;;
+    esac
+    [[ -n ${date} ]] && (( j > 0 )) && date+=", "
+    (( j > 0 )) && date+="${j} ${i}"
+    (( j > 1 )) && date+="s"
+  done
+
+  echo $date
+else
+  echo "$y:$d:$h:$m:$s"
+fi

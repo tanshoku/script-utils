@@ -1,0 +1,91 @@
+#!/bin/zsh
+# Author:      Elizabeth bodaneze                                           2018
+# Description: capture the screen once every n seconds to make time-lapse videos
+# Requires:    xdotool, scrot
+#
+
+## options
+interval=1
+format=png
+quality=50
+application=Krita
+calibrate_time_loop=1
+
+typeset -F4 delay
+
+  
+main(){
+  local x=0
+  typeset -Z6 x
+  delay=${interval}
+
+
+  while true; do
+    if [[ -n $calibrate_time_loop ]] ; then
+  
+      if (( $(date +%S) >= 45 )); then
+        echo "Please wait..."
+        sleep 16
+      fi
+  
+      echo "Please focus $application for 10 seconds..."
+  
+    else
+      if [[ -a $application-000000.$format ]]; then
+        local x=$(echo $application-* | tr -cd '[:digit:] ' | tr -s ' ' '\n' | tail -1)
+        ((x++))
+        echo "Resuming from $application-$x.$format"
+      fi
+    
+      printf "Recording...\nPress 'p' to pause, 'q' to exit\n"
+    fi
+    
+  
+    while true; do
+      if xdotool getwindowname $(xdotool getactivewindow 2> /dev/null) 2> /dev/null | grep $application > /dev/null; then
+  
+        if [[ -n $calibrate_time_loop ]] ; then
+          filename=test.$format
+        else
+          filename=$application-$x.$format
+        fi
+  
+        #maim -f $format -m 10 -i $(xdotool getactivewindow) $filename &
+        #maim -f $format -m 10 > $filename &
+        scrot -ozq ${quality} ${filename} &
+        printf "Saved to $filename...\r"
+        ((x++))
+  
+        if [[ -n $calibrate_time_loop ]] ; then
+          time[$x]=$(date +%S.%N)
+          (( x >= 10 )) && break
+        fi
+      fi
+    
+      read -t 0$delay -sk1 "exit?"
+    
+      if [[ $exit = p ]]; then
+       printf "\nPaused.\nPress any key to resume.\n"
+       exit=0
+       read -sk1
+      elif [[ $exit = q ]]; then
+        printf "\nBye!\n"
+        exit 0
+      fi
+    done
+  
+  
+    if [[ -n $calibrate_time_loop ]] ; then
+      delay=$(( ( interval + 1 ) - (((time[10] - time[9]) + (time[8] - time[7]) + (time[6] - time[5]) + (time[4] - time[3]) + (time[2] - time[1])) / 5) ))
+      printf "\n$delay\n"
+
+      sleep 1
+  
+      rm -v test.${format}
+      calibrate_time_loop=''
+      x=0
+    fi
+  done
+}
+
+main

@@ -1,30 +1,38 @@
 #!/bin/zsh
-#weather forecast wrapper by Elizabeth Bodaneze
+# Author:       Elizabet Bodaneze   2018
+# Description:  weather forecast wrapper
+# Requires:     finger, curl, ccache
+#
+# Rev 2, april/2022: cache data to avoid uneeded pings
 
-#WTTRCITY=
+
+WTTRCITY="Caxias do Sul"
 
 error="wttr: invalid option -- $@\n\
 Try 'wttr --help' for more information.\n"
-
-weather_graph(){
-  finger ${city_nospaces}~$cols@graph.no
-  return 0
-}
-
-_weather(){
-  curl -s "${v2}wttr.in$1"
-  return 0
-}
 
 help_text="\
 wttr - Gets the weather forecast from the internet.\n\
 \n\
 Options:\n\
+    -o     - Use older cached data, if available
     -g     - Outputs a temperature graph\n\
     -m     - Moon phase\n\
     -f     - Full weather forecast\n\
-    -2     - Outputs a verbose graph
-    -h     - this help screen\n\n\""
+    -2     - Outputs a verbose graph\n\
+    -h     - this help screen\n"
+
+
+weather_graph() {
+  ccache ${force_cache} -e ${exptime} -f /tmp/wttr_cache -c "finger ${city_underscores}~${cols}@graph.no"
+  return 0
+}
+
+weather() {
+  ccache ${force_cache} -e ${exptime} -f /tmp/wttr_cache -c "curl -s ${v2}wttr.in${1}"
+  return 0
+}
+
 
 cols=$(tput cols)
 (( cols > 158 )) && cols=158
@@ -33,21 +41,22 @@ cols=$(tput cols)
 city_lower=$(echo $WTTRCITY | tr -t '[:upper:]' '[:lower:]')
 city_underscores=$(echo $city_lower |  tr -t ' ' '_')
 city_nospaces=$(echo $city_lower |  tr -d ' ')
+exptime=3600
 
 if [[ -z $1 ]]; then
-  _weather "/${city_underscores}?0q"
+  weather "/${city_underscores}?0q" "d"
   exit 0
 fi
 
-while getopts ":gmfh2" opt; do
-  case $opt in
+
+while getopts ":ogmfh2" opt; do
+  case ${opt} in
+    o) force_cache=-i ;;
     g) weather_graph;;
-    m) _weather "/moon";;
-    f) _weather "/${city_underscores}${narrow}";;
-    2) v2="v2." ; _weather "/${city_underscores}" ;;
+    m) exptime=86400 ; weather "/moon";;
+    f) weather "/${city_underscores}${narrow}";;
+    2) v2="v2." ; weather "/${city_underscores}";;
     h) printf $help_text; exit 0;;
     \?) printf $error; exit 1;;
   esac
 done
-
-#TODO: cache data

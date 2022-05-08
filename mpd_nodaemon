@@ -12,10 +12,12 @@ touch /tmp/mpd_nodaemon.lock
 
 ps -C mpd > /dev/null || mpd
 ps -C mpdcron > /dev/null || mpdcron
-ps -C mpDris2 > /dev/null || mpDris2
-#if pc -C wmaker > /dev/null ; then
-#  ps -C WMmp > /dev/null || WMmp -lc "#4DB6AC" &
-#fi
+#ps -C mpDris2 > /dev/null || mpDris2 &
+ps -C mppopmd > /dev/null || mppopmd -F -c $HOME/.config/mppopmd.conf > /dev/null &
+
+if ps -C wmaker > /dev/null ; then
+  ps -C WMmp > /dev/null || WMmp -lc "#4DB6AC" &
+fi
 
 pb_test() {
   ps xauwww | grep -i "[${1[1]}]${1[2,-1]}" && return 1 
@@ -41,17 +43,18 @@ watcher() {
         [[ $state != stop ]] && break
         [[ $state == stop && $sleep == 300 ]] && if ! ps -C $client > /dev/null ; then
           rm /tmp/mpd_nodaemon.lock
-          mpd --kill
+          killall mppopmd
           killall mpdcron
-          rm /home/liz/.mpdcron/mpdcron.pid
+          mpd --kill
+          rm $HOME/.mpdcron/mpdcron.pid
           #killall WMmp
-          killall mpDris2
+          #killall mpDris2
         fi
       done
     fi
   done
 }
 
-#watcher
+watcher
 
-#respawn_polybar
+respawn_polybar
