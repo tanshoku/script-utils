@@ -7,14 +7,14 @@
 max_tries=6
 word_size=5
 dict=en
-seed=$(date +%Y%m%d%H)
+seed=$(date +%Y%m%d)
 wordlist=$(aspell -d ${dict} dump master \
             | grep -E "^[[:lower:]]{${word_size}}$" \
             | sort -R --random-source=<(yes ${seed}) )
 answer=$(echo ${wordlist} | head -1)
 
 save_quit() {
-  echo $letter 
+  echo $letter
   ( echo "save_attempt=(${save_attempt})\nsave_seed=${seed}"
     for ((c=1;c<=max_tries;c++)) ; do
       [[ -n "$success" && -n "$letter" ]] && (( c == i )) && (( save_tries[c] += 1 ))
