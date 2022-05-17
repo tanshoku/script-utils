@@ -2,11 +2,12 @@
 #
 # Author:       Elizabeth Bodaneze 2022
 # Description:  Convert seconds to human-readable time
-# Usage:        converts [-l] [seconds]
+# Usage:        converts [-l|-f] [seconds]
 #
 
 
 [[ $1 = "-l" ]] && long=1 && shift
+[[ $1 = "-f" ]] && full=1 && shift
 local t=$1
 
 if [[ -z $long ]] ; then
@@ -41,6 +42,18 @@ if [[ -n $long ]] ; then
   done
 
   echo $date
-else
+elif [[ -n $full ]] ; then
   echo "$y:$d:$h:$m:$s"
+else
+  if (( y > 0 )) ; then
+    echo "$y:$d:$h:$m:$s"
+  elif (( d > 0 )) ; then
+    echo "$d:$h:$m:$s"
+  elif (( h > 0 )) ; then
+    echo "$h:$m:$s"
+  elif (( m > 0 )) ; then
+    echo "$m:$s"
+  else
+    echo "$s"
+  fi
 fi

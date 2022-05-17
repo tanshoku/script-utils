@@ -60,7 +60,7 @@ A wrapper script for `grabc`, it also prints the colour on your terminal, if it 
 
 ### converts
 
-Converts raw second values into more human-readable formats. Usage is as simple as `converts 3600` or `converts -l 1652032992` for a long version.
+Converts raw second values into more human-readable formats. Usage is as simple as `converts 3600` or `converts -l 1652032992` for a long version or `converts -f 360` for a full version.
 
 
 ### debppa

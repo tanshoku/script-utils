@@ -1,6 +1,6 @@
 #!/bin/zsh
 #
-# Author:       Elizabeth Bodaneze              2021
+# Author:       Elizabeth Bodaneze                                                    2021/2022
 # Description:  Command-line timelapse maker
 # Requires:     zsh, ffmpeg, imagemagick, mikmod2wav (https://github.com/laomaiweng/mikmod2wav)
 #
@@ -15,65 +15,90 @@ fade_length=300                        #in frames
 fade_original=orig.jpg                 #any format supported by imagemagick
 
 
+endnum=0
+
+
 usage="\
-Usage: lapse -[a str] -[v str|t]\n\
-             -[r int] -[s int]\n\
-             -[F int] -[i str]\n\
-             -[f] -[l int]\n\
+Usage: lapse -[a str]   -[v str|t]\n\
+             -[r int]   -[s int]\n\
+             -[F int]   -[i str]\n\
+             -[f [str]] -[l int]\n\
              -[c] -[C] -h\n\
 \n\
 Options:\n\
-  -a str  audio file(s); can be specified as many times as you wish, the ending\n\
-          result will be all files concatenated in the same order as specified\n\
-  -v str  video file(s); same as -a\n\
-  -t      timelapse mode, will turn a set of images into a video\n\
-  -r int  video rotation in video mode; 0, 90, 180 or 270 degrees\n\
-  -s int  speed up video by int times\n\
-  -F int  timelapse framerate, other than the default ${timelapse_fps}\n\
-  -i str  timelapse filename pattern, other than the default ${timelapse_filenames}\n\
-  -f      creates a small clip with an image fading in and out to be appended\n\
-          to the end of the video\n\
-  -o str  fader image filename, other than the default ${fade_original}\n\
-  -l int  length of the fader clip in frames, other than the default ${fade_length}\n\
-  -c      clean up files created on intermediary steps\n\
-  -C      calculate the length of a timelapse video created with all images at\n\
-          the current directory, at the default or specified framerate\n\
-  -h      this help screen\n\n"
+  -a str    audio file(s); can be specified as many times as you wish, the ending\n\
+            result will be all files concatenated in the same order as specified\n\
+  -v str    video file(s); same as -a\n\
+  -t        timelapse mode, will turn a set of images into a video\n\
+  -r int    video rotation in video mode; 0, 90, 180 or 270 degrees\n\
+  -s int    speed up video by int times\n\
+  -F int    timelapse framerate, other than the default ${timelapse_fps}\n\
+  -i str    timelapse filename pattern, other than the default ${timelapse_filenames}\n\
+  -f [str]  creates a small clip with an image fading in and out to be appended\n\
+            to the end of the video. Uses ${fade_original} as the input file unless 
+            otherwise specified. This option can be called more than one, like -a and -v.\n\
+  -l int    length of the fader clip in frames, other than the default ${fade_length}\n\
+  -k int    keep the last black frame of the fade sequence for the specified extra amount\n\
+            of frames. Useful to fill in some time at the end of the video.\n\
+  -c        clean up files created on intermediary steps\n\
+  -C        calculate the length of a timelapse video created with all images at\n\
+            the current directory, at the default or specified framerate\n\
+  -h        this help screen\n\n"
 
 
-_fader() {
+_fader_preprocessor() {
   local i
   typeset -Z3 frame
   frame=0
-  
-  for ((i=100;i>0;i-=5)) ; do 
-    convert "${fade_original}" -fill black -colorize "${i}%" "_frame${frame}.jpg"
-    ((frame++))
-  done
-  
-  while ((frame < fade_length - 20)); do
-    cp "${fade_original}" "_frame${frame}.jpg"
-    ((frame++))
-  done
-  
-  for ((i=0;i<=100;i+=5)) ; do 
-    convert "${fade_original}" -fill black -colorize "${i}%" "_frame${frame}.jpg"
-    ((frame++))
-  done
-  
-  ffmpeg -framerate $timelapse_fps -i _frame%03d.jpg -c:v libx264 -pix_fmt yuv420p ending.mp4
-  
-  printf "file 'output-concat.mp4'\nfile 'ending.mp4'\n" > vidlist.txt
-  
-  ffmpeg -f concat -safe 0 -i vidlist.txt -c copy output-final.mp4
 
-  rm vidlist.txt
-  rm _frame*.jpg
+  if [[ -n "${1}" ]] ; then
+    convert -quality 96 "${1}" "${fade_original}"
+  fi
+  
+  ending_file=ending-${endnum}.mp4
+
+  if ! [[ -e "$ending_file" ]] ; then
+    for ((i=100;i>0;i-=5)) ; do 
+      convert "${fade_original}" -fill black -colorize "${i}%" "_frame${frame}.jpg"
+      ((frame++))
+    done
+    
+    while ((frame < fade_length - 20)); do
+      cp "${fade_original}" "_frame${frame}.jpg"
+      ((frame++))
+    done
+    
+    for ((i=0;i<=100;i+=5)) ; do 
+      convert "${fade_original}" -fill black -colorize "${i}%" "_frame${frame}.jpg"
+      ((frame++))
+    done
+    
+    if [[ -n "$keep_length" ]] ; then
+      fade_original="_frame${frame}.jpg" 
+
+      while ((frame < keep_length)); do
+        cp "${fade_original}" "_frame${frame}.jpg"
+        ((frame++))
+      done
+    fi
+
+    ffmpeg -hide_banner -framerate $timelapse_fps -i _frame%03d.jpg -c:v libx264 -pix_fmt yuv420p "${ending_file}"
+    
+    rm _frame*.jpg
+  fi
+    
+  if (( endnum == 0 )) ; then
+    printf "file 'output-concat.mp4'\n" > fade-final-concat.txt
+  fi
+  
+  printf "file '%s'\n" "${ending_file}" >> fade-final-concat.txt
+
+  ((endnum++))
 }
 
 
 _join_frames() {
-  ffmpeg  -framerate ${timelapse_fps} -i ${timelapse_filenames} -c:v libx264 -pix_fmt yuv420p output-concat.mp4
+  ffmpeg -hide_banner -framerate ${timelapse_fps} -i ${timelapse_filenames} -c:v libx264 -pix_fmt yuv420p output-concat.mp4
 }
 
 
@@ -90,9 +115,9 @@ _video_concat() {
   (( video_speedup > 0 )) && filters+="setpts=PTS/${video_speedup}"
   
   if [[ -n $filters ]] ; then
-    ffmpeg -f concat -safe 0 -i vidlist.txt -vf "${filters}" output-concat.mp4
+    ffmpeg -hide_banner -f concat -safe 0 -i vidlist.txt -vf "${filters}" output-concat.mp4
   else
-    ffmpeg -f concat -safe 0 -i vidlist.txt -c copy output-concat.mp4
+    ffmpeg -hide_banner -f concat -safe 0 -i vidlist.txt -c copy output-concat.mp4
   fi
   
   rm vidlist.txt
@@ -108,18 +133,20 @@ _audio_preprocessor() {
   local filename
   local wav
 
-  song=$1
-  filename=$(basename ${song})
-  wav=${filename/\.*/.wav}
-
-  #convert stuff to wav
-  if file "${song}" | grep -i module > /dev/null ; then
-    mikmod2wav "${song}" "${wav}"
-  else 
-    ffmpeg -i "${song}" "${wav}"
+  if ! [[ -e mixed.ogg ]] ; then
+    song=$1
+    filename=$(basename ${song})
+    wav=${filename/\.*/.wav}
+  
+    #convert stuff to wav
+    if file "${song}" | grep -i module > /dev/null ; then
+      mikmod2wav "${song}" "${wav}"
+    else 
+      ffmpeg -hide_banner -i "${song}" "${wav}"
+    fi
+  
+    echo "file '${wav}'" >> songlist.txt
   fi
-
-  echo "file '${wav}'" >> songlist.txt
 }
 
 _main() {
@@ -131,7 +158,7 @@ _main() {
     songcount=$(wc -l < songlist.txt)
 
     if ((songcount >= 1)) ; then
-      ffmpeg -f concat -safe 0 -i songlist.txt -c:a libvorbis -q:a 5 -vn mixed.ogg
+      ffmpeg -hide_banner -f concat -safe 0 -i songlist.txt -c:a libvorbis -q:a 5 -vn mixed.ogg
       rm songlist.txt
       rm *.wav
     fi
@@ -144,14 +171,15 @@ _main() {
   fi
 
   if [[ -n $fader ]] ; then
-    _fader
+    ffmpeg -hide_banner -f concat -safe 0 -i fade-final-concat.txt -c copy output-final.mp4
+    rm fade-final-concat.txt
   else
     mv -v output-concat.mp4 output-final.mp4
   fi
 
   _date=$(date +%y%m%d)
   if [[ -e mixed.ogg ]] ; then
-    ffmpeg -i output-final.mp4 -i mixed.ogg -c copy timelapse${_date}.mp4
+    ffmpeg -hide_banner -i output-final.mp4 -i mixed.ogg -c copy timelapse${_date}.mp4
   else
     mv -v output-final.mp4 timelapse${_date}.mp4
   fi
@@ -178,21 +206,22 @@ _length_calculator() {
 }
 
 
-while getopts ":a:v:r:s:tF:i:fl:ciCh" opt; do
+while getopts ":a:v:r:s:tF:i:l:k:f:ciCh" opt; do
   case "$opt" in
-    "a") _audio_preprocessor $OPTARG  ;;
-    "v") _video_preprocessor $OPTARG  ;;
-    "r") video_rotation=$OPTARG       ;;
-    "s") video_speedup=$OPTARG        ;;
-    "t") timelapse=1                  ;;
-    "F") timelapse_fps=$OPTARG        ;;
-    "i") timelapse_filenames=$OPTARG  ;;
-    "f") fader=1                      ;;
-    "l") fade_length=$OPTARG          ;;
-    "c") cleanup=1                    ;;
-    "C") _length_calculator && exit 0 ;;
-    "h") echo -n "$usage" && exit 0   ;;
-    "?") echo -n "$usage" && exit 1   ;;
+    "a") _audio_preprocessor $OPTARG           ;;
+    "v") _video_preprocessor $OPTARG           ;;
+    "r") video_rotation=$OPTARG                ;;
+    "s") video_speedup=$OPTARG                 ;;
+    "t") timelapse=1                           ;;
+    "F") timelapse_fps=$OPTARG                 ;;
+    "i") timelapse_filenames=$OPTARG           ;;
+    "l") fade_length=$OPTARG                   ;;
+    "k") keep_length=$OPTARG                   ;;
+    "f") fader=1 ; _fader_preprocessor $OPTARG ;;
+    "c") cleanup=1                             ;;
+    "C") _length_calculator && exit 0          ;;
+    "h") echo -n "$usage" && exit 0            ;;
+    "?") echo -n "$usage" && exit 1            ;;
   esac
 done
 

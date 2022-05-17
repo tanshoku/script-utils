@@ -9,7 +9,7 @@ if [[ -n $album && -n $cue ]] ; then
   rm -v $album
   
   for track in *.flac ; do
-    ffmpeg -i $track -c:a libvorbis -q:a 6 -vn ${track/flac/ogg} \
+    ffmpeg -hide_banner -i $track -c:a libvorbis -q:a 6 -vn ${track/flac/ogg} \
       && rm -v $track
   done
 
